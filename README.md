@@ -79,3 +79,10 @@ enabling live or paid usage.
 
 This project is for educational and research purposes. Review all third-party
 licenses before redistribution or commercial use.
+
+## Troubleshooting
+
+- If `uv sync` fails on `tradingagents`, ensure `backend/vendor/tradingagents` is present.
+- If the frontend cannot reach the backend, set `NEXT_PUBLIC_API_URL` in `frontend/.env.local`.
+- If ports are busy, change backend/frontend ports and update the frontend API URL.
+- Keep `.env`, database files, and generated caches out of version control.
