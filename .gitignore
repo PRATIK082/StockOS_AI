@@ -1,0 +1,32 @@
+﻿# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.db
+*.sqlite
+*.sqlite3
+
+# Backend local data
+backend/data/
+backend/*.db
+backend/.env
+
+# Node / Next
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+frontend/.env.local
+
+# Local tooling
+.opencode/
+opencode.jsonc
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
