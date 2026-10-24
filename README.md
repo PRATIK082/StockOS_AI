@@ -1,9 +1,17 @@
 # StockOS AI
 
+![StockOS AI demo](demo.gif)
+
 StockOS AI is a local-first stock market research and paper-trading platform.
 It combines market data, technical analysis, options analytics, AI-assisted
 research, risk controls, and a multi-agent autopilot that runs entirely in
 paper mode by default.
+
+## Demo
+
+- Video: [demo.mp4](demo.mp4)
+- Source clip: [clips/](clips/)
+- Screenshots: [docs/shots/](docs/shots/)
 
 ## Features
 
@@ -62,6 +70,17 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
   `execution_mode=LIVE_ENABLED` and broker credentials are configured.
 - Risk limits are enforced by the backend risk engine.
 - Never commit `.env`, API keys, database files, or local runtime data.
+
+## UI overview
+
+StockOS AI includes a unified Terminal Command Center plus market, analytics,
+trading, and AI views. Representative screens:
+
+![Dashboard](docs/shots/05-hook.png)
+![Live market dashboard](docs/shots/01-dashboard.png)
+![Technical indicators](docs/shots/02-indicators.png)
+![AI prediction](docs/shots/03-prediction.png)
+![Paper trading terminal](docs/shots/04-terminal.png)
 
 ## Third-party services and licenses
 
