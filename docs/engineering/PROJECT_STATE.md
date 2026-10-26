@@ -7,7 +7,7 @@
   - `326d42a` feat(security): phase1 argon2, fernet, rate limits, headers, totp
   - `ba7a019` feat(action-center): add approval queue and semi-auto order mode
   - `2cc607f` feat(historify): add duckdb ohlcv warehouse and routes
-  - pending feat(broker-plugins): add plugin metadata loader and master contract store
+- `e36ad62` fix(runtime): repair missing settings attribute and auto-upgrade local db schema
 
 ## Completed (Tier 1 foundation)
 - Security hardening Phase 1 (Argon2 + bcrypt fallback, Fernet PBKDF2 per-install salt, rate limiting, security headers, TOTP 2FA, semi-auto mode).
@@ -23,7 +23,9 @@
 
 ## Verification
 - Backend: `261 passed` (pytest) on `feature/openalgo-adaptation`.
-- No frontend changes this session.
+- Frontend: `npm run typecheck` and `npm run build` passed.
+- Runtime smoke test: all GET API routes returned 200 except expected 404/422 for missing path/query parameters; fixed `/api/trading/providers` (`StockOSSettings` missing `ta_default_provider`).
+- Existing SQLite database upgraded successfully on startup (TOTP columns and new tables added).
 
 ## Remaining / Next
 - Finish Phase 1 remaining items: CSRF, IP ban, token/session revocation, frontend TOTP.
