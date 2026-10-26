@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+import json
 from datetime import date
 from decimal import Decimal
 from typing import Any, Optional
@@ -13,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import CurrentUser
 from app.api.schemas import OrderPreviewRequest, OrderSubmitRequest, OrderResponse
-from app.core.config import settings
+from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.db.models import Order as OrderModel
 from app.db.session import SessionFactory, get_session
@@ -30,9 +31,9 @@ logger = get_logger("orders.router")
 
 def _get_broker(user_id: str):
     """Return the active broker for the user (selected by config)."""
-    from app.core.config import settings
+    from app.core.config import get_settings
 
-    return get_broker(name=getattr(settings, "selected_execution_broker", None), user_id=user_id)
+    return get_broker(name=getattr(get_settings(), "selected_execution_broker", None), user_id=user_id)
 
 
 def _qty_to_int(q: Any) -> int:
@@ -130,7 +131,7 @@ async def order_submit(
     broker = _get_broker(user.id)
 
     # Semi-auto / approval mode: queue for human approval instead of immediate execution.
-    if getattr(settings, "is_approval_required", False):
+    if getattr(get_settings(), "is_approval_required", False):
         from app.db.models import ActionCenterItem
         item = ActionCenterItem(
             user_id=user.id,
@@ -335,3 +336,257 @@ async def order_detail(
         estimated_fill=None,
         risk_notes=None,
     )
+
+
+# ---- Smart / Basket / Split orders ----------------------------------------
+
+def _extract_order_fields(body: dict) -> dict:
+    return {
+        "symbol": (body.get("symbol") or body.get("tradingsymbol") or "").strip().upper(),
+        "side": (body.get("side") or body.get("action") or "BUY").upper(),
+        "quantity": body.get("quantity", body.get("qty", 0)),
+        "price": body.get("price", body.get("limit_price", None)),
+        "order_type": body.get("order_type", body.get("orderType", body.get("price_type", "MARKET"))),
+        "chase": bool(body.get("chase", False)),
+        "position_size": body.get("position_size", body.get("positionSize", None)),
+        "stop_loss": body.get("stop_loss", body.get("stopLoss", None)),
+        "target": body.get("target", None),
+    }
+
+
+@router.post("/smart", status_code=status.HTTP_201_CREATED)
+@router.post("/smart-order", status_code=status.HTTP_201_CREATED)
+@router.post("/smartorder", status_code=status.HTTP_201_CREATED)
+async def order_smart(body: dict, user: CurrentUser, session: AsyncSession = Depends(get_session)) -> Any:
+    fields = _extract_order_fields(body)
+    symbol = fields["symbol"]
+    if not symbol:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "symbol is required")
+    try:
+        parse_symbol(symbol)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Invalid symbol '{symbol}': {exc}") from exc
+
+    qty = fields["quantity"]
+    try:
+        if float(qty) <= 0 and fields["position_size"] is None:
+            raise ValueError("quantity")
+    except (TypeError, ValueError):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "quantity must be positive")
+
+    broker = _get_broker(user.id)
+
+    # Approval mode: queue for human approval.
+    if getattr(get_settings(), "is_approval_required", False):
+        from app.db.models import ActionCenterItem
+        item = ActionCenterItem(
+            user_id=user.id,
+            symbol=symbol,
+            side=fields["side"],
+            quantity=str(qty),
+            price=float(fields["price"]) if fields["price"] is not None else 0.0,
+            status="pending",
+            order_type="SMART",
+            payload=json.dumps({"kind": "smart", "fields": fields}),
+        )
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return {"id": item.id, "status": "pending_approval", "message": "Smart order queued for approval"}
+
+    # Risk check
+    try:
+        quote = await broker.quote(symbol)
+        price_for_risk = float(quote.last_price)
+    except Exception:
+        price_for_risk = float(fields["price"]) if fields["price"] else 0.0
+    if price_for_risk > 0:
+        from app.services.risk.risk_engine import RiskEngine
+        risk_ok, risk_notes = RiskEngine.check_order(
+            symbol=symbol,
+            quantity=Decimal(str(qty if qty else 1)),
+            side=fields["side"],
+            entry_price=Decimal(str(price_for_risk)),
+        )
+        if not risk_ok:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Risk check failed: {risk_notes}")
+
+    from app.services.order_workflows import smart_order as run_smart, serialize_results
+    results = await run_smart(
+        broker,
+        symbol=symbol,
+        side=fields["side"],
+        quantity=qty,
+        price=fields["price"],
+        order_type=fields["order_type"],
+        chase=fields["chase"],
+        position_size=fields["position_size"],
+        stop_loss=fields["stop_loss"],
+        target=fields["target"],
+    )
+
+    # Persist
+    db_ids = []
+    async with SessionFactory() as session2:
+        from sqlalchemy import insert
+        from app.db.models import Order as OrderModel
+        for r in results:
+            row = await session2.execute(
+                insert(OrderModel).values(
+                    user_id=user.id,
+                    symbol=getattr(r, "symbol", symbol),
+                    side=getattr(r, "side", fields["side"]),
+                    quantity=str(getattr(r, "quantity", qty)),
+                    price=float(getattr(r, "filled_price", None) or fields["price"] or 0),
+                    status="filled",
+                    order_type="SMART",
+                    extra_data=getattr(r, "order_id", None),
+                ).returning(OrderModel.id)
+            )
+            db_ids.append(row.scalar_one())
+        await session2.commit()
+
+    return {
+        "id": db_ids[0] if db_ids else None,
+        "order_ids": [r.order_id for r in results],
+        "results": serialize_results(results),
+        "status": "filled" if results else "no_action",
+        "message": "Smart order submitted (paper mode)",
+    }
+
+
+@router.post("/basket", status_code=status.HTTP_201_CREATED)
+@router.post("/basket-order", status_code=status.HTTP_201_CREATED)
+@router.post("/basketorder", status_code=status.HTTP_201_CREATED)
+@router.post("/placebasketorder", status_code=status.HTTP_201_CREATED)
+async def order_basket(body: dict, user: CurrentUser, session: AsyncSession = Depends(get_session)) -> Any:
+    orders = body.get("orders", body.get("basket", body.get("items", [])))
+    if not isinstance(orders, list) or not orders:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "orders list is required")
+
+    broker = _get_broker(user.id)
+
+    if getattr(get_settings(), "is_approval_required", False):
+        from app.db.models import ActionCenterItem
+        item = ActionCenterItem(
+            user_id=user.id,
+            symbol="BASKET",
+            side="BUY",
+            quantity=str(len(orders)),
+            price=0.0,
+            status="pending",
+            order_type="BASKET",
+            payload=json.dumps({"kind": "basket", "orders": orders}),
+        )
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return {"id": item.id, "status": "pending_approval", "message": "Basket order queued for approval"}
+
+    from app.services.order_workflows import basket_order as run_basket, serialize_results
+    results = await run_basket(broker, orders)
+
+    db_ids = []
+    async with SessionFactory() as session2:
+        from sqlalchemy import insert
+        from app.db.models import Order as OrderModel
+        for r in results:
+            row = await session2.execute(
+                insert(OrderModel).values(
+                    user_id=user.id,
+                    symbol=getattr(r, "symbol", "BASKET"),
+                    side=getattr(r, "side", "BUY"),
+                    quantity=str(getattr(r, "quantity", 0)),
+                    price=float(getattr(r, "filled_price", 0) or 0),
+                    status="filled",
+                    order_type="BASKET",
+                    extra_data=getattr(r, "order_id", None),
+                ).returning(OrderModel.id)
+            )
+            db_ids.append(row.scalar_one())
+        await session2.commit()
+
+    return {
+        "id": db_ids[0] if db_ids else None,
+        "order_ids": [r.order_id for r in results],
+        "results": serialize_results(results),
+        "status": "filled" if results else "no_action",
+        "message": "Basket order submitted (paper mode)",
+    }
+
+
+@router.post("/split", status_code=status.HTTP_201_CREATED)
+@router.post("/split-order", status_code=status.HTTP_201_CREATED)
+@router.post("/splitorder", status_code=status.HTTP_201_CREATED)
+async def order_split(body: dict, user: CurrentUser, session: AsyncSession = Depends(get_session)) -> Any:
+    fields = _extract_order_fields(body)
+    symbol = fields["symbol"]
+    if not symbol:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "symbol is required")
+    try:
+        parse_symbol(symbol)
+    except Exception as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Invalid symbol '{symbol}': {exc}") from exc
+
+    splits = body.get("splits", body.get("num_splits", body.get("chunks", None)))
+    split_size = body.get("split_size", body.get("chunk_size", body.get("splitSize", None)))
+
+    broker = _get_broker(user.id)
+
+    if getattr(get_settings(), "is_approval_required", False):
+        from app.db.models import ActionCenterItem
+        item = ActionCenterItem(
+            user_id=user.id,
+            symbol=symbol,
+            side=fields["side"],
+            quantity=str(fields["quantity"]),
+            price=float(fields["price"]) if fields["price"] is not None else 0.0,
+            status="pending",
+            order_type="SPLIT",
+            payload=json.dumps({"kind": "split", "fields": fields, "splits": splits, "split_size": split_size}),
+        )
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return {"id": item.id, "status": "pending_approval", "message": "Split order queued for approval"}
+
+    from app.services.order_workflows import split_order as run_split, serialize_results
+    results = await run_split(
+        broker,
+        symbol=symbol,
+        side=fields["side"],
+        quantity=fields["quantity"],
+        splits=splits,
+        split_size=split_size,
+        price=fields["price"],
+        order_type=fields["order_type"],
+        chase=fields["chase"],
+    )
+
+    db_ids = []
+    async with SessionFactory() as session2:
+        from sqlalchemy import insert
+        from app.db.models import Order as OrderModel
+        for r in results:
+            row = await session2.execute(
+                insert(OrderModel).values(
+                    user_id=user.id,
+                    symbol=getattr(r, "symbol", symbol),
+                    side=getattr(r, "side", fields["side"]),
+                    quantity=str(getattr(r, "quantity", 0)),
+                    price=float(getattr(r, "filled_price", None) or fields["price"] or 0),
+                    status="filled",
+                    order_type="SPLIT",
+                    extra_data=getattr(r, "order_id", None),
+                ).returning(OrderModel.id)
+            )
+            db_ids.append(row.scalar_one())
+        await session2.commit()
+
+    return {
+        "id": db_ids[0] if db_ids else None,
+        "order_ids": [r.order_id for r in results],
+        "results": serialize_results(results),
+        "status": "filled" if results else "no_action",
+        "message": "Split order submitted (paper mode)",
+    }

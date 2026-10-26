@@ -162,6 +162,42 @@ class PaperBroker(BrokerBase):
         """Accept optional session/user_id for API compatibility."""
         self._session = kwargs.get("session")
         self._user_id = kwargs.get("user_id")
+        self._analyzer_mode = bool(kwargs.get("analyzer_mode", False))
+        self._allow_duplicate_orders = False
+        try:
+            if "analyzer_mode" not in kwargs:
+                self._analyzer_mode = bool(get_settings().analyzer_mode)
+        except Exception:
+            pass
+
+    @property
+    def analyzer_mode(self) -> bool:
+        try:
+            if getattr(self, "_analyzer_mode", False):
+                return True
+            return bool(get_settings().analyzer_mode)
+        except Exception:
+            return bool(getattr(self, "_analyzer_mode", False))
+
+    @analyzer_mode.setter
+    def analyzer_mode(self, value: bool) -> None:
+        self._analyzer_mode = bool(value)
+        try:
+            get_settings().analyzer_mode = bool(value)
+        except Exception:
+            pass
+
+    def enable_analyzer(self) -> None:
+        self.analyzer_mode = True
+
+    def disable_analyzer(self) -> None:
+        self.analyzer_mode = False
+
+    def toggle_analyzer(self, enabled: bool | None = None) -> bool:
+        if enabled is None:
+            enabled = not self.analyzer_mode
+        self.analyzer_mode = bool(enabled)
+        return self.analyzer_mode
 
     # ------------------------------------------------------------------
     # Internal: connect - paper broker is always "connected"
@@ -191,8 +227,13 @@ class PaperBroker(BrokerBase):
     # ------------------------------------------------------------------
     async def funds(self) -> BrokerFunds:
         settings = get_settings()
-        cash = Decimal("100000.00")  # 1 lakh simulated starting capital
+        if self.analyzer_mode:
+            cash = Decimal(str(settings.analyzer_sandbox_capital))
+        else:
+            cash = Decimal("100000.00")  # 1 lakh simulated starting capital
         margin_available = cash * Decimal(str(settings.max_capital_deployed_percent)) / Decimal("100.0")
+        if self.analyzer_mode:
+            margin_available = cash * Decimal(str(settings.analyzer_margin_percent)) / Decimal("100.0")
         equity = cash
         return BrokerFunds(
             cash=cash,
@@ -432,7 +473,7 @@ class PaperBroker(BrokerBase):
             and o.side == side
             and o.submitted_at.strftime("%Y-%m-%d") == today
         ]
-        if recent_same_side:
+        if recent_same_side and not getattr(self, "_allow_duplicate_orders", False):
             return {
                 "allowed": False,
                 "reason": f"Duplicate {side} order for {symbol} today",

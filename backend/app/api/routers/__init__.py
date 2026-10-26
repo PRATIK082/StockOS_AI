@@ -3,6 +3,7 @@
 from app.api.routers import (
     action_center,
     analysis,
+    analyzer,
     brokers,
     chart_markup,
     historify,
@@ -30,6 +31,8 @@ from app.api.routers import (
 
 api_router = APIRouter()
 api_router.include_router(action_center.router)
+api_router.include_router(analyzer.router)
+api_router.include_router(analyzer.compat_router)
 api_router.include_router(auth.router)
 api_router.include_router(brokers.router)
 api_router.include_router(chart_markup.router)

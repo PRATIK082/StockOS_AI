@@ -49,6 +49,7 @@ class SettingsUpdate(BaseModel):
     max_fno_lots: conint(gt=0) | None = Field(
         None, ge=1, le=100, description="Max F&O lots per strategy"
     )
+    analyzer_mode: bool | None = Field(None, description="Enable analyzer (sandbox) mode")
 
 
 class SettingsResponse(BaseModel):
@@ -61,6 +62,7 @@ class SettingsResponse(BaseModel):
     max_open_positions: int
     max_capital_deployed_percent: float
     max_fno_lots: int
+    analyzer_mode: bool = False
     daily_pnl_rupees: float  # accumulated today (UTC)
 
 
@@ -82,6 +84,7 @@ def get_settings_endpoint():
         max_open_positions=d.max_open_positions,
         max_capital_deployed_percent=d.max_capital_deployed_percent,
         max_fno_lots=d.max_fno_lots,
+        analyzer_mode=d.analyzer_mode,
         daily_pnl_rupees=d._daily_pnl,  # noqa: protected-access
     )
 
@@ -111,6 +114,8 @@ def update_settings(payload: SettingsUpdate):
         settings.max_capital_deployed_percent = payload.max_capital_deployed_percent
     if payload.max_fno_lots is not None:
         settings.max_fno_lots = payload.max_fno_lots
+    if payload.analyzer_mode is not None:
+        settings.analyzer_mode = payload.analyzer_mode
 
     d = get_settings()
     return SettingsResponse(
@@ -122,5 +127,6 @@ def update_settings(payload: SettingsUpdate):
         max_open_positions=d.max_open_positions,
         max_capital_deployed_percent=d.max_capital_deployed_percent,
         max_fno_lots=d.max_fno_lots,
+        analyzer_mode=d.analyzer_mode,
         daily_pnl_rupees=d._daily_pnl,  # noqa: protected-access
     )
