@@ -156,7 +156,7 @@ async def resolve_selection(
 
     from app.core.config import settings
 
-    default_provider = settings.ta_default_provider
+    default_provider = settings.llm_default_provider
     if default_provider not in PROVIDERS:
         default_provider = "ollama"
     return LLMSelection(provider=default_provider)

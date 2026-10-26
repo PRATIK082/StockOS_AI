@@ -73,7 +73,7 @@ def _pop_queue(run_id: str) -> None:
 
 @router.get("/providers")
 async def providers(user: CurrentUser) -> dict:
-    return {"default_provider": settings.ta_default_provider, "providers": public_provider_list()}
+    return {"default_provider": settings.llm_default_provider, "providers": public_provider_list()}
 
 
 @router.get("/credentials")
@@ -119,7 +119,7 @@ async def _resolve_analyze(body: TradingAnalyzeRequest, user, session) -> tuple[
         ) from exc
 
     sel = LLMSelection(
-        provider=body.provider or settings.ta_default_provider,
+        provider=body.provider or settings.llm_default_provider,
         deep_model=body.deep_model,
         quick_model=body.quick_model,
         api_key=body.api_key,

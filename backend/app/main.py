@@ -19,6 +19,10 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     logger.info(f"Starting {settings.app_name} in {settings.environment} mode")
 
+    # Ensure local database schema is present and upgraded.
+    from app.db.session import init_db
+    await init_db()
+
     # Trading Desk scheduler (interval loop over watchlists).
     scheduler: TradingScheduler | None = None
     if settings.ta_scheduler_enabled:

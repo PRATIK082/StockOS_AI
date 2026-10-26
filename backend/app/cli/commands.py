@@ -95,7 +95,7 @@ async def _status() -> dict[str, Any]:
         "providers": status,
         "factor_count": count_factors(),
         "llm_default_provider": settings.llm_default_provider or "ollama",
-        "ta_default_provider": settings.ta_default_provider,
+        "ta_default_provider": settings.llm_default_provider,
     }
 
 
@@ -455,7 +455,7 @@ def desk_cmd(
 ) -> None:
     """Run the full Trading Desk (LLM multi-agent) analysis on SYMBOL."""
     sel = LLMSelection(
-        provider=provider or settings.ta_default_provider,
+        provider=provider or settings.llm_default_provider,
         deep_model=deep_model,
         quick_model=quick_model,
         api_key=api_key,
