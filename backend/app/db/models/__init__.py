@@ -16,3 +16,4 @@ from app.db.models.schedule import ScheduledResearch, ScheduledRun  # noqa: F401
 from app.db.models.order import Order  # noqa: F401
 from app.db.models.action_center import ActionCenterItem  # noqa: F401
 from app.db.models.autopilot import AutopilotRun, AutopilotRunNode  # noqa: F401
+from app.db.models.master_contract import MasterContract  # noqa: F401

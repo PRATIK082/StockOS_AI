@@ -1,0 +1,10 @@
+{
+  "name": "angelone",
+  "display_name": "Angel One",
+  "broker_type": "live",
+  "module": "app.brokers.angelone",
+  "class": "AngelOneBroker",
+  "supported_exchanges": ["NSE", "BSE", "NFO", "MCX"],
+  "capabilities": ["orders", "quotes", "positions", "funds", "modify", "cancel"],
+  "auth_required": true
+}
