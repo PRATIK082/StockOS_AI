@@ -14,4 +14,5 @@ from app.db.models.memory import AgentMemory  # noqa: F401
 from app.db.models.prediction import PredictionHistory  # noqa: F401
 from app.db.models.schedule import ScheduledResearch, ScheduledRun  # noqa: F401
 from app.db.models.order import Order  # noqa: F401
+from app.db.models.action_center import ActionCenterItem  # noqa: F401
 from app.db.models.autopilot import AutopilotRun, AutopilotRunNode  # noqa: F401

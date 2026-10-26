@@ -127,6 +127,28 @@ async def order_submit(
 
     broker = _get_broker(user.id)
 
+    # Semi-auto / approval mode: queue for human approval instead of immediate execution.
+    if getattr(settings, "is_approval_required", False):
+        from app.db.models import ActionCenterItem
+        item = ActionCenterItem(
+            user_id=user.id,
+            symbol=symbol,
+            side=body.side,
+            quantity=str(body.quantity),
+            price=float(body.price) if body.price else 0.0,
+            status="pending",
+            order_type=body.order_type or "MARKET",
+            payload=None,
+        )
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return {
+            "id": item.id,
+            "status": "pending_approval",
+            "message": "Order queued for approval in Action Center",
+        }
+
     # Risk check before submission
     try:
         quote = await broker.quote(symbol)

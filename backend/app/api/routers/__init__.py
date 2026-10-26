@@ -1,6 +1,7 @@
 ﻿from fastapi import APIRouter
 
 from app.api.routers import (
+    action_center,
     analysis,
     auth,
     autopilot,
@@ -23,6 +24,7 @@ from app.api.routers import (
 )
 
 api_router = APIRouter()
+api_router.include_router(action_center.router)
 api_router.include_router(auth.router)
 api_router.include_router(market.router)
 api_router.include_router(instruments.router)
