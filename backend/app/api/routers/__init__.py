@@ -3,10 +3,13 @@
 from app.api.routers import (
     action_center,
     analysis,
+    brokers,
+    historify,
     auth,
     autopilot,
     instruments_new as instruments,
     market,
+    master_contract,
     memory,
     orders,
     options,
@@ -26,7 +29,10 @@ from app.api.routers import (
 api_router = APIRouter()
 api_router.include_router(action_center.router)
 api_router.include_router(auth.router)
+api_router.include_router(brokers.router)
+api_router.include_router(historify.router)
 api_router.include_router(market.router)
+api_router.include_router(master_contract.router)
 api_router.include_router(instruments.router)
 api_router.include_router(watchlist.router)
 api_router.include_router(portfolio.router)
