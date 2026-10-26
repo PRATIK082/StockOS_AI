@@ -10,7 +10,7 @@ Branch: `feature/openalgo-adaptation` (local only)
 - [x] All 261 backend tests pass.
 
 ## Next
-- [ ] Refactor existing flat adapters into `app/brokers/<name>/` packages without breaking imports.
-- [ ] Add plugin-based broker factory in order routing.
-- [ ] Add master contract sync/import jobs.
-- [ ] Add plugin loading tests.
+- [x] Refactor existing flat adapters into `app/brokers/<name>/` packages without breaking imports.
+- [x] Add plugin-based broker factory in order routing.
+- [x] Add master contract sync/import jobs.
+- [x] Add plugin loading tests.
