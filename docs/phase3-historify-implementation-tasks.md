@@ -10,10 +10,10 @@ Branch: `feature/openalgo-adaptation` (local only)
 - [x] All backend tests pass (261).
 
 ## Not completed (remaining)
-- [ ] Watchlist CRUD and per-symbol catalog.
-- [ ] Download jobs with pause/resume/cancel.
-- [ ] Incremental updates and gap detection.
-- [ ] Import/export flows.
-- [ ] FNO discovery and contract handling.
+- [x] Watchlist CRUD and per-symbol catalog (backend).
+- [x] Download jobs with pause/resume/cancel (backend).
+- [x] Incremental updates and gap detection (backend).
+- [x] Import/export flows (backend).
+- [x] FNO discovery and contract handling (backend).
 - [ ] Frontend Historify pages and controls.
-- [ ] Auth-gated integration tests beyond ingest/query/status.
+- [x] Auth-gated integration tests beyond ingest/query/status (backend).
