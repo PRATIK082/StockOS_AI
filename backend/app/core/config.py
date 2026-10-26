@@ -70,8 +70,9 @@ class StockOSSettings(BaseSettings):
     access_token_expire_minutes: int = 30
     jwt_secret: str = "super-secret-key-change-me"
     jwt_algorithm: str = "HS256"
-
-    # ------------------------------------------------------------------ #
+    password_pepper: str = ""  # optional application pepper for password hashing
+    rate_limit_default_per_minute: int = 120
+    rate_limit_auth_per_minute: int = 10    # ------------------------------------------------------------------ #
     # LLM providers (local-first; all optional)
     # ------------------------------------------------------------------ #
     llm_default_provider: str = "ollama"
