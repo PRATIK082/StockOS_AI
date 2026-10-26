@@ -1,0 +1,20 @@
+{
+  "name": "paper",
+  "display_name": "Paper Trading",
+  "broker_type": "paper",
+  "module": "app.brokers.paper.broker",
+  "class": "PaperBroker",
+  "supported_exchanges": [
+    "NSE",
+    "BSE",
+    "NFO"
+  ],
+  "capabilities": [
+    "orders",
+    "quotes",
+    "positions",
+    "funds",
+    "kill_switch"
+  ],
+  "auth_required": false
+}

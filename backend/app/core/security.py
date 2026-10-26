@@ -6,6 +6,7 @@ import base64
 import hashlib
 import os
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -73,15 +74,19 @@ def needs_rehash(hashed: str) -> bool:
 
 
 def create_access_token(subject: str, role: str, extra: dict[str, Any] | None = None) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.access_token_expire_minutes)
     payload: dict[str, Any] = {
         "sub": subject,
         "role": role,
-        "iat": datetime.now(timezone.utc),
+        "iat": now,
         "exp": expire,
+        "jti": str(uuid.uuid4()),
     }
     if extra:
         payload.update(extra)
+        if "jti" not in payload:
+            payload["jti"] = str(uuid.uuid4())
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
@@ -90,6 +95,65 @@ def decode_token(token: str) -> dict[str, Any] | None:
         return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
     except JWTError:
         return None
+
+
+# --- Token revocation (in-memory blacklist) ----------------------------------
+
+
+_revoked_tokens: dict[str, datetime] = {}
+
+
+def _expiry_from_payload(payload: dict[str, Any]) -> datetime:
+    exp = payload.get("exp")
+    if isinstance(exp, datetime):
+        return exp if exp.tzinfo else exp.replace(tzinfo=timezone.utc)
+    if isinstance(exp, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(exp), tz=timezone.utc)
+        except (OSError, ValueError, OverflowError):
+            pass
+    return datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+
+
+def revoke_token(jti: str, exp: Any = None) -> None:
+    """Add a token (by jti) to the in-memory revocation blacklist."""
+    if not jti:
+        return
+    if isinstance(exp, dict):
+        expiry = _expiry_from_payload(exp)
+    elif exp is None:
+        expiry = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    else:
+        try:
+            expiry = _expiry_from_payload({"exp": exp})
+        except Exception:
+            expiry = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
+    _revoked_tokens[jti] = expiry
+    _cleanup_revoked()
+
+
+def is_token_revoked(jti: str) -> bool:
+    if not jti:
+        return False
+    _cleanup_revoked()
+    expiry = _revoked_tokens.get(jti)
+    if expiry is None:
+        return False
+    if expiry <= datetime.now(timezone.utc):
+        _revoked_tokens.pop(jti, None)
+        return False
+    return True
+
+
+def _cleanup_revoked() -> None:
+    now = datetime.now(timezone.utc)
+    for jti, expiry in list(_revoked_tokens.items()):
+        if expiry <= now:
+            _revoked_tokens.pop(jti, None)
+
+
+def clear_revoked_tokens() -> None:
+    _revoked_tokens.clear()
 
 
 # --- RBAC ---------------------------------------------------------------------

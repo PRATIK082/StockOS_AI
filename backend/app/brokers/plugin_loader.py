@@ -13,17 +13,29 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 PLUGINS_DIR = Path(__file__).resolve().parent / "plugins"
+BROKERS_DIR = Path(__file__).resolve().parent
+
+
+def _plugin_paths() -> List[Path]:
+    paths: List[Path] = []
+    if PLUGINS_DIR.exists():
+        paths.extend(PLUGINS_DIR.glob("*/plugin.json"))
+    # Also support plugin.json shipped inside app/brokers/<name>/ packages.
+    for p in BROKERS_DIR.glob("*/plugin.json"):
+        if p.parent.name not in ("plugins",):
+            paths.append(p)
+    return paths
 
 
 def list_plugin_names() -> List[str]:
-    if not PLUGINS_DIR.exists():
-        return []
-    return sorted(p.parent.name for p in PLUGINS_DIR.glob("*/plugin.json"))
+    names = {p.parent.name for p in _plugin_paths()}
+    return sorted(names)
 
 
 def load_plugin_metadata(name: str) -> Dict[str, Any]:
-    path = PLUGINS_DIR / name / "plugin.json"
-    if not path.exists():
+    candidates = [PLUGINS_DIR / name / "plugin.json", BROKERS_DIR / name / "plugin.json"]
+    path = next((p for p in candidates if p.exists()), None)
+    if path is None:
         raise FileNotFoundError(f"Unknown broker plugin: {name}")
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)

@@ -1,0 +1,23 @@
+{
+  "name": "zerodha",
+  "display_name": "Zerodha Kite",
+  "broker_type": "live",
+  "module": "app.brokers.zerodha.broker",
+  "class": "ZerodhaBroker",
+  "supported_exchanges": [
+    "NSE",
+    "BSE",
+    "NFO",
+    "MCX"
+  ],
+  "capabilities": [
+    "orders",
+    "quotes",
+    "positions",
+    "funds",
+    "modify",
+    "cancel",
+    "gtt"
+  ],
+  "auth_required": true
+}

@@ -76,6 +76,25 @@ async def providers(user: CurrentUser) -> dict:
     return {"default_provider": settings.llm_default_provider, "providers": public_provider_list()}
 
 
+@router.get("/model-registry")
+async def model_registry(user: CurrentUser) -> dict:
+    """Model registry UI data: providers with default models."""
+    providers = public_provider_list()
+    for p in providers:
+        models = []
+        if p.get("default_deep"):
+            models.append(p["default_deep"])
+        if p.get("default_quick") and p.get("default_quick") not in models:
+            models.append(p["default_quick"])
+        p["models"] = models
+    return {"default_provider": settings.llm_default_provider, "providers": providers}
+
+
+@router.get("/models/registry")
+async def models_registry_alias(user: CurrentUser) -> dict:
+    return await model_registry(user)
+
+
 @router.get("/credentials")
 async def credentials(user: CurrentUser, session: AsyncSession = Depends(get_session)) -> list[dict]:
     return await store.list_credentials(session, user.id)

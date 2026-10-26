@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import CurrentUser
 from app.db.models import MasterContract
 from app.db.session import get_session
+from app.services.master_contract import import_contracts, sync_contracts, import_csv
 
 router = APIRouter(prefix="/master-contract", tags=["master-contract"])
 
@@ -68,3 +69,36 @@ async def add_contract(
     await session.commit()
     await session.refresh(row)
     return {"id": row.id, "symbol": row.symbol, "exchange": row.exchange}
+
+
+@router.post("/sync", status_code=status.HTTP_200_OK)
+async def sync_master_contracts(
+    body: dict,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> Any:
+    broker = str(body.get("broker") or body.get("name") or "").strip().lower()
+    contracts = body.get("contracts") or body.get("data") or []
+    if not broker:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "broker is required")
+    if not isinstance(contracts, list):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "contracts must be a list")
+    result = await sync_contracts(session, broker, contracts)
+    return result
+
+
+@router.post("/import", status_code=status.HTTP_201_CREATED)
+async def import_master_contracts(
+    body: dict,
+    user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> Any:
+    broker = body.get("broker")
+    if "csv" in body and isinstance(body.get("csv"), str):
+        result = await import_csv(session, body["csv"], broker=broker)
+        return result
+    contracts = body.get("contracts") or body.get("data") or []
+    if not isinstance(contracts, list):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "contracts must be a list")
+    result = await import_contracts(session, contracts, broker=broker)
+    return result

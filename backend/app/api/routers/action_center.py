@@ -12,7 +12,7 @@ from app.api.deps import CurrentUser
 from app.api.schemas import OrderSubmitRequest
 from app.db.models import ActionCenterItem
 from app.db.session import SessionFactory, get_session
-from app.brokers.paper import PaperBroker
+from app.brokers.factory import get_broker
 from app.brokers.interface import BrokerSide, ProductType, OrderType
 from decimal import Decimal
 
@@ -103,7 +103,9 @@ async def execute_item(
     if item.status != "approved":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Item is {item.status}, must be approved")
 
-    broker = PaperBroker(user_id=user.id)
+    from app.core.config import settings
+
+    broker = get_broker(name=getattr(settings, "selected_execution_broker", None), user_id=user.id)
     side = BrokerSide(item.side)
     product = ProductType.CNC
     order_type = OrderType(item.order_type or "MARKET")

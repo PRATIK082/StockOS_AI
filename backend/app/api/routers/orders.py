@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.models import Order as OrderModel
 from app.db.session import SessionFactory, get_session
-from app.brokers.paper import PaperBroker
+from app.brokers.factory import get_broker
 from app.brokers.interface import BrokerSide, ProductType, OrderType
 from app.services.data.providers import parse_symbol
 
@@ -28,9 +28,11 @@ logger = get_logger("orders.router")
 
 # ---- helpers -----------------------------------------------------------
 
-def _get_broker(user_id: str) -> PaperBroker:
-    """Return the active broker for the user (paper by default)."""
-    return PaperBroker(user_id=user_id)
+def _get_broker(user_id: str):
+    """Return the active broker for the user (selected by config)."""
+    from app.core.config import settings
+
+    return get_broker(name=getattr(settings, "selected_execution_broker", None), user_id=user_id)
 
 
 def _qty_to_int(q: Any) -> int:
