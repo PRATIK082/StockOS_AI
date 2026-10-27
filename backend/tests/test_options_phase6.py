@@ -168,6 +168,22 @@ def test_iv_smile_atm_and_skew():
     assert len(smile["points"]) == 5
 
 
+def test_iv_smile_skew_unavailable_for_zero_dte_expiry():
+    """A chain expiring today has no time value - the 25-delta proxy is skipped."""
+    from app.services.options.analytics import iv_smile, normalize_chain
+
+    chain = _synthetic_chain(expiry=datetime.now().strftime("%Y-%m-%d"))
+    # Strip provider deltas so the 25-delta lookup can only use the proxy path.
+    for row in chain["calls"] + chain["puts"]:
+        row.pop("delta", None)
+        row.pop("gamma", None)
+
+    smile = iv_smile(normalize_chain(chain))
+    assert smile["delta_source"] == "unavailable"
+    assert smile["skew_25d"] is None
+    assert smile["note"]
+
+
 def test_vol_surface_matrix_and_term_structure():
     from app.services.options.analytics import normalize_chain, vol_surface
 

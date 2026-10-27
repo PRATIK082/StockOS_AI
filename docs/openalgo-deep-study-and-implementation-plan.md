@@ -613,7 +613,7 @@ with paper + one live broker, keep paper default.
 - [x] Add incremental downloads + zombie cleanup.
 - [x] Add CSV/Parquet import/export.
 - [x] Add FNO discovery (underlyings/expiries/chains).
-- [ ] Add `/historify/*` routers + frontend page. (routers done; frontend page pending)
+- [x] Add `/historify/*` routers + frontend page. (routers + `frontend/app/historify/page.tsx` done)
 - [x] Tests: DuckDB store + job lifecycle.
 
 ### Phase 4 - Analyzer Mode + Action Center (2-3 weeks)
@@ -621,23 +621,33 @@ with paper + one live broker, keep paper default.
 - [x] Add action center table + service + endpoints.
 - [x] Route orders through approval queue in semi-auto mode.
 - [x] Add smart/basket/split order workflows + position sizing.
-- [ ] Add frontend Action Center page + approval UX. (backend done; frontend page pending)
+- [x] Add frontend Action Center page + approval UX. (`frontend/app/action-center/page.tsx`,
+      approve → execute two-step flow + analyzer-mode card)
 - [x] Tests: approval flow.
 
 ### Phase 5 — AI Agent Upgrade (4-6 weeks)
 - [ ] Migrate agent runtime to Agno + LiteLLM (or adapt).
-- [ ] Add MCP client to consume external tools.
-- [ ] Add tool approval flow for orders.
-- [ ] Add chart markup integration (agent -> chart).
-- [ ] Add model registry UI (providers/models).
-- [ ] Tests: agent tool execution + approval.
+- [x] Add MCP client to consume external tools. (`app/services/mcp/client.py` — stdio + SSE,
+      `/api/mcp/clients*` routes)
+- [ ] Add tool approval flow for orders. (generic Action Center queue exists; agent-tool
+      specific approval still pending)
+- [x] Add chart markup integration (agent -> chart). (`app/services/agents/chart_markup.py`,
+      `/api/analysis/chart-markup` + `/api/chart-markup`)
+- [x] Add model registry UI (providers/models). (`/api/llm/registry`,
+      `/api/trading/model-registry`, `frontend/app/ai-tools/page.tsx`)
+- [x] Tests: agent tool execution + approval. (`test_mcp_client.py`, `test_chart_markup.py`,
+      `test_model_registry.py`)
 
 ### Phase 6 — Options Suite (3-4 weeks)
-- [ ] Port option analytics services (GEX, vol surface, IV smile, OI
+- [x] Port option analytics services (GEX, vol surface, IV smile, OI
       tracker/profile, straddle chart/PnL, max pain).
-- [ ] Add margin calculator + synthetic futures endpoints.
-- [ ] Add Plotly dependency + pages.
-- [ ] Tests: option analytics.
+      (`app/services/options/analytics.py` + `/api/options/analytics/*`)
+- [x] Add margin calculator + synthetic futures endpoints.
+      (`app/services/options/margin.py` + `/api/options/margin/*`)
+- [x] Add options analytics frontend page. (`frontend/app/options-analytics/page.tsx` —
+      table-based rendering; Plotly dependency deliberately deferred to avoid an
+      unapproved new dependency)
+- [x] Tests: option analytics. (`test_options_phase6.py`, 30 tests)
 
 ### Phase 7 — Flow Builder (4-6 weeks)
 - [ ] Add xyflow dependency.

@@ -380,10 +380,17 @@ def iv_smile(chain: NormalizedChain) -> Dict[str, Any]:
     call_25 = _find_by_delta(points, "call_delta", 0.25)
     put_25 = _find_by_delta(points, "put_delta", -0.25)
     if call_25 is None or put_25 is None:
-        delta_source = "proxy"
-        if atm_strike:
-            call_25 = _iv_at_strike(points, atm_strike * 1.2)
-            put_25 = _iv_at_strike(points, atm_strike * 0.8)
+        if t <= 0:
+            # Expiry is today (or already past): there is no time value left, so
+            # the 25-delta points are not meaningful.  Do not fabricate a proxy.
+            delta_source = "unavailable"
+            call_25 = None
+            put_25 = None
+        else:
+            delta_source = "proxy"
+            if atm_strike:
+                call_25 = _iv_at_strike(points, atm_strike * 1.2)
+                put_25 = _iv_at_strike(points, atm_strike * 0.8)
 
     skew = None
     if call_25 is not None and put_25 is not None and (call_25 + put_25) > 0:
@@ -400,6 +407,11 @@ def iv_smile(chain: NormalizedChain) -> Dict[str, Any]:
         "delta_source": delta_source,
         "points": points,
         "has_iv": any(p["iv"] for p in points),
+        "note": (
+            "Expiry is today or in the past - 25-delta skew is not computable."
+            if delta_source == "unavailable"
+            else None
+        ),
     }
 
 
