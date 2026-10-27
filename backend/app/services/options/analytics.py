@@ -247,8 +247,12 @@ def oi_profile(chain: NormalizedChain) -> Dict[str, Any]:
 
     total_call = sum(r["call_oi"] for r in rows)
     total_put = sum(r["put_oi"] for r in rows)
-    max_call_strike = max(rows, key=lambda r: r["call_oi"])["strike"] if rows else None
-    max_put_strike = max(rows, key=lambda r: r["put_oi"])["strike"] if rows else None
+    # Only report a "max OI strike" when that side actually carries open interest.
+    # Picking the first strike of an all-zero side would be a fabricated level.
+    call_rows = [r for r in rows if r["call_oi"] > 0]
+    put_rows = [r for r in rows if r["put_oi"] > 0]
+    max_call_strike = max(call_rows, key=lambda r: r["call_oi"])["strike"] if call_rows else None
+    max_put_strike = max(put_rows, key=lambda r: r["put_oi"])["strike"] if put_rows else None
 
     return {
         "symbol": chain.symbol,
@@ -519,8 +523,12 @@ def gamma_exposure(chain: NormalizedChain) -> Dict[str, Any]:
     call_gex = sum(r["call_gex"] for r in rows)
     put_gex = sum(r["put_gex"] for r in rows)
 
-    zero_gamma = _zero_gamma_strike(rows)
-    flip = _flip_strike(rows, spot)
+    has_oi = chain.total_oi() > 0
+    # Every derived level below is meaningless without open interest - do not
+    # present a strike grid artefact as if it were a dealer-hedging level.
+    zero_gamma = _zero_gamma_strike(rows) if has_oi else None
+    flip = _flip_strike(rows, spot) if has_oi else None
+    max_abs_gex_rows = [r for r in rows if abs(r["total_gex"]) > 0]
 
     return {
         "symbol": chain.symbol,
@@ -532,8 +540,13 @@ def gamma_exposure(chain: NormalizedChain) -> Dict[str, Any]:
         "put_gex": put_gex,
         "zero_gamma_strike": zero_gamma,
         "flip_strike": flip,
-        "max_abs_gex_strike": max(rows, key=lambda r: abs(r["total_gex"]))["strike"] if rows else None,
-        "has_oi": chain.total_oi() > 0,
+        "max_abs_gex_strike": (
+            max(max_abs_gex_rows, key=lambda r: abs(r["total_gex"]))["strike"]
+            if max_abs_gex_rows
+            else None
+        ),
+        "has_oi": has_oi,
+        "note": None if has_oi else "Provider publishes no open interest - gamma exposure levels are unavailable.",
     }
 
 
@@ -594,6 +607,10 @@ def straddle_pnl(
         put_premium = put_leg.ltp if put_leg else 0.0
         entry_premium = call_premium + put_premium
     entry_premium = float(entry_premium)
+    # Some providers (and expired/illiquid chains) publish no premium at all.
+    # A zero-premium "straddle" has no breakevens and an unbounded payoff, so
+    # reporting it as if it were a real position would be misleading.
+    has_premium = entry_premium > 0
 
     spot = chain.spot or strike
     low = max(spot * (1.0 - price_range), 0.01)
@@ -604,19 +621,34 @@ def straddle_pnl(
     for i in range(max(points, 2)):
         price = low + step * i
         intrinsic = abs(price - strike)
-        pnl = (intrinsic - entry_premium) if position == "long" else (entry_premium - intrinsic)
+        if has_premium:
+            pnl = (intrinsic - entry_premium) if position == "long" else (entry_premium - intrinsic)
+        else:
+            pnl = None
         curve.append({
             "price": round(price, 2),
             "intrinsic": round(intrinsic, 2),
-            "pnl": round(pnl, 2),
+            "pnl": round(pnl, 2) if pnl is not None else None,
         })
 
-    breakevens = [strike - entry_premium, strike + entry_premium]
-    pnl_values = [p["pnl"] for p in curve]
-    max_profit = max(pnl_values)
-    max_loss = min(pnl_values)
-    max_profit_price = next((p["price"] for p in curve if p["pnl"] == max_profit), None)
-    max_loss_price = next((p["price"] for p in curve if p["pnl"] == max_loss), None)
+    if has_premium:
+        breakevens = [strike - entry_premium, strike + entry_premium]
+        pnl_values = [p["pnl"] for p in curve]
+        max_profit = max(pnl_values)
+        max_loss = min(pnl_values)
+        max_profit_price = next((p["price"] for p in curve if p["pnl"] == max_profit), None)
+        max_loss_price = next((p["price"] for p in curve if p["pnl"] == max_loss), None)
+        note = "Payoff curve uses intrinsic value with a constant entry premium."
+    else:
+        breakevens = []
+        max_profit = None
+        max_loss = None
+        max_profit_price = None
+        max_loss_price = None
+        note = (
+            "This chain publishes no option premium, so entry cost, breakevens and "
+            "max profit/loss are unavailable. Only expiry intrinsic value is shown."
+        )
 
     return {
         "symbol": chain.symbol,
@@ -625,15 +657,16 @@ def straddle_pnl(
         "strike": strike,
         "position": position,
         "entry_premium": round(entry_premium, 2),
+        "has_premium": has_premium,
         "call_premium": round(call_leg.ltp, 2) if call_leg else None,
         "put_premium": round(put_leg.ltp, 2) if put_leg else None,
         "breakevens": [round(b, 2) for b in breakevens],
-        "lower_breakeven": round(breakevens[0], 2),
-        "upper_breakeven": round(breakevens[1], 2),
-        "max_profit": round(max_profit, 2),
-        "max_loss": round(max_loss, 2),
+        "lower_breakeven": round(breakevens[0], 2) if breakevens else None,
+        "upper_breakeven": round(breakevens[1], 2) if breakevens else None,
+        "max_profit": round(max_profit, 2) if max_profit is not None else None,
+        "max_loss": round(max_loss, 2) if max_loss is not None else None,
         "max_profit_price": max_profit_price,
         "max_loss_price": max_loss_price,
         "curve": curve,
-        "note": "Payoff curve uses intrinsic value with a constant entry premium.",
+        "note": note,
     }

@@ -250,6 +250,76 @@ def test_straddle_rejects_invalid_position():
         straddle_pnl(normalize_chain(_synthetic_chain()), position="sideways")
 
 
+def test_straddle_without_premium_does_not_fabricate_breakevens():
+    """A chain with no published premium must not present a zero-cost straddle."""
+    from app.services.options.analytics import normalize_chain, straddle_pnl
+
+    raw = _synthetic_chain()
+    for row in raw["calls"] + raw["puts"]:
+        row["ltp"] = 0
+    result = straddle_pnl(normalize_chain(raw), position="long")
+
+    assert result["has_premium"] is False
+    assert result["entry_premium"] == 0
+    assert result["breakevens"] == []
+    assert result["lower_breakeven"] is None
+    assert result["upper_breakeven"] is None
+    assert result["max_profit"] is None
+    assert result["max_loss"] is None
+    # The curve still shows expiry intrinsic value, but the PnL column is blank.
+    assert all(point["pnl"] is None for point in result["curve"])
+    assert any(point["intrinsic"] > 0 for point in result["curve"])
+    assert "no option premium" in result["note"]
+
+
+def test_oi_profile_without_open_interest_reports_no_levels():
+    """Resistance/support must be null (not an arbitrary strike) when OI is absent."""
+    from app.services.options.analytics import normalize_chain, oi_profile
+
+    raw = _synthetic_chain()
+    for row in raw["calls"] + raw["puts"]:
+        row["oi"] = 0
+    profile = oi_profile(normalize_chain(raw))
+
+    assert profile["has_oi"] is False
+    assert profile["resistance"] is None
+    assert profile["support"] is None
+    assert profile["max_call_oi_strike"] is None
+    assert profile["max_put_oi_strike"] is None
+
+
+def test_oi_profile_ignores_zero_oi_side():
+    """A chain with put OI only must not report a call-side resistance level."""
+    from app.services.options.analytics import normalize_chain, oi_profile
+
+    raw = _synthetic_chain()
+    for row in raw["calls"]:
+        row["oi"] = 0
+    profile = oi_profile(normalize_chain(raw))
+
+    assert profile["has_oi"] is True
+    assert profile["resistance"] is None
+    assert profile["max_call_oi_strike"] is None
+    assert profile["support"] == 100.0
+    assert profile["max_put_oi_strike"] == 100.0
+
+
+def test_gamma_exposure_without_open_interest_reports_no_levels():
+    """Zero-gamma / flip levels are unavailable when the provider has no OI."""
+    from app.services.options.analytics import gamma_exposure, normalize_chain
+
+    raw = _synthetic_chain()
+    for row in raw["calls"] + raw["puts"]:
+        row["oi"] = 0
+    result = gamma_exposure(normalize_chain(raw))
+
+    assert result["has_oi"] is False
+    assert result["zero_gamma_strike"] is None
+    assert result["flip_strike"] is None
+    assert result["max_abs_gex_strike"] is None
+    assert result["note"]
+
+
 # --------------------------------------------------------------------------- margin
 
 def test_margin_equity_intraday_uses_leverage():

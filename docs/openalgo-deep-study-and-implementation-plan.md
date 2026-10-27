@@ -647,7 +647,7 @@ with paper + one live broker, keep paper default.
 - [x] Add options analytics frontend page. (`frontend/app/options-analytics/page.tsx` —
       table-based rendering; Plotly dependency deliberately deferred to avoid an
       unapproved new dependency)
-- [x] Tests: option analytics. (`test_options_phase6.py`, 30 tests)
+- [x] Tests: option analytics. (`test_options_phase6.py`, 34 tests)
 
 ### Phase 7 — Flow Builder (4-6 weeks)
 - [ ] Add xyflow dependency.

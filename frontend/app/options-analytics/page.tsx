@@ -122,6 +122,7 @@ interface Gex {
   flip_strike: number | null
   max_abs_gex_strike: number | null
   has_oi: boolean
+  note?: string | null
 }
 
 interface Straddle {
@@ -131,16 +132,17 @@ interface Straddle {
   strike: number | null
   position: string
   entry_premium: number
+  has_premium?: boolean
   call_premium: number | null
   put_premium: number | null
   breakevens: number[]
   lower_breakeven: number | null
   upper_breakeven: number | null
-  max_profit: number
-  max_loss: number
+  max_profit: number | null
+  max_loss: number | null
   max_profit_price: number | null
   max_loss_price: number | null
-  curve: Array<{ price: number; intrinsic: number; pnl: number }>
+  curve: Array<{ price: number; intrinsic: number; pnl: number | null }>
   note: string | null
 }
 
@@ -496,16 +498,22 @@ export default function OptionsAnalyticsPage() {
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Stat
-                        label="Resistance (max call OI)"
-                        value={num(oiProfile.data.resistance)}
+                        label="Resistance (max call OI strike)"
+                        value={num(oiProfile.data.resistance, 0)}
                         tone="negative"
                       />
                       <Stat
-                        label="Support (max put OI)"
-                        value={num(oiProfile.data.support)}
+                        label="Support (max put OI strike)"
+                        value={num(oiProfile.data.support, 0)}
                         tone="positive"
                       />
                     </div>
+                    {!oiProfile.data.has_oi ? (
+                      <p className="text-xs text-muted-foreground">
+                        This provider publishes no open interest, so no OI-based support or
+                        resistance levels can be derived.
+                      </p>
+                    ) : null}
                     {oiProfile.data.rows.length === 0 ? (
                       <EmptyState>No strikes returned for this chain.</EmptyState>
                     ) : (
@@ -799,6 +807,9 @@ export default function OptionsAnalyticsPage() {
                         hint="Dealer hedging direction changes here"
                       />
                     </div>
+                    {gex.data.note ? (
+                      <p className="text-xs text-muted-foreground">{gex.data.note}</p>
+                    ) : null}
                     {gex.data.rows.length === 0 ? (
                       <EmptyState>No strikes returned for this chain.</EmptyState>
                     ) : (
@@ -920,7 +931,13 @@ export default function OptionsAnalyticsPage() {
                               <TableCell
                                 className={cn(
                                   "text-right",
-                                  c.pnl > 0 ? "text-positive" : c.pnl < 0 ? "text-negative" : "",
+                                  c.pnl == null
+                                    ? ""
+                                    : c.pnl > 0
+                                      ? "text-positive"
+                                      : c.pnl < 0
+                                        ? "text-negative"
+                                        : "",
                                 )}
                               >
                                 {num(c.pnl)}
@@ -932,6 +949,12 @@ export default function OptionsAnalyticsPage() {
                     )}
                     {straddle.data.note ? (
                       <p className="text-[11px] text-muted-foreground">{straddle.data.note}</p>
+                    ) : null}
+                    {straddle.data.has_premium === false ? (
+                      <div className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-600 dark:text-amber-500">
+                        No option premium is published for this chain. Entry cost, breakevens and
+                        max profit/loss are unavailable - only expiry intrinsic value is shown.
+                      </div>
                     ) : null}
                   </>
                 ) : null}

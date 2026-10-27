@@ -284,4 +284,10 @@ async def synthetic_futures_endpoint(
         )
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
-    return result.to_dict()
+    payload = result.to_dict()
+    if float(call_premium or 0) <= 0 and float(put_premium or 0) <= 0:
+        payload["note"] = (
+            "The provider publishes no option premium for this chain, so the synthetic was "
+            "costed at zero premium. Supply call_premium/put_premium for a real cost."
+        )
+    return payload

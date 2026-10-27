@@ -36,10 +36,16 @@ Completed in Phase 6:
 - [x] Routers: `/api/options/analytics/*` and `/api/options/margin/*`.
 - [x] Frontend page `frontend/app/options-analytics/page.tsx` (table-based; the Plotly
       dependency was skipped on purpose — no new npm dependency without approval).
-- [x] Tests: `backend/tests/test_options_phase6.py` (30 tests).
+- [x] Tests: `backend/tests/test_options_phase6.py` (34 tests).
 
 Known behaviour:
 - The free TradingView options scanner publishes no open interest, so max pain, OI
   profile and GEX legitimately return empty values for those chains.
 - A chain expiring today (0DTE) has no time value, so the 25-delta skew is reported as
   unavailable instead of being filled with a proxy number.
+- When a chain carries no OI, support/resistance and zero-gamma/flip levels are
+  returned as null (not the first strike of the grid) with an explanatory note.
+- When a chain publishes no option premium, the straddle endpoint returns
+  `has_premium: false`, an empty breakeven list and null max profit/loss; only the
+  expiry intrinsic curve is shown. The synthetic-futures endpoint adds a note that
+  it was costed at zero premium.
