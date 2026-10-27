@@ -1,4 +1,4 @@
-"""Broker plugin loader (OpenAlgo-inspired, adapted to StockOS).
+"""Broker plugin loader (multi-broker plugin contract, adapted to StockOS).
 
 Plugins live under ``app/brokers/plugins/<name>/plugin.json``.  The loader reads
 metadata lazily and only imports the concrete broker module when requested, so

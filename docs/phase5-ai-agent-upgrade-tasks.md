@@ -1,6 +1,6 @@
 # Phase 5 — AI Agent Upgrade: Concrete Implementation Tasks
 
-Branch: `feature/openalgo-adaptation` (local only)
+Branch: `StockAlgo_1`
 
 ## Already available in StockOS
 - [x] Multi-agent research/analysis services (`app/services/agents/*`).

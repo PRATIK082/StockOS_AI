@@ -1,15 +1,15 @@
-﻿# OpenAlgo -> StockOS AI: Deep Comparative Study and Implementation Plan
+﻿# Reference Platform -> StockOS AI: Deep Comparative Study and Implementation Plan
 
 > **Purpose**: This document is the single source of truth for learning from
-> [marketcalls/openalgo](https://github.com/marketcalls/openalgo) and adapting
+> the external reference platform and adapting
 > its architecture, capabilities, and UI patterns into **StockOS AI**.
 > It intentionally contains **no cloned code or files**. All references point to
 > the upstream project for study; implementation in StockOS must be rewritten
 > and integrated with StockOS conventions (FastAPI + Next.js App Router).
 >
-> **Study source**: `https://github.com/marketcalls/openalgo` (cloned to a
+> **Study source**: `the external reference platform` (cloned to a
 > temporary directory for analysis only; not vendored into this repository).
-> **OpenAlgo version studied**: `2.0.1.4` (Python >= 3.12, Node >= 22/24/26).
+> **Reference Platform version studied**: `2.0.1.4` (Python >= 3.12, Node >= 22/24/26).
 > **StockOS base**: `feature/demo-media` (commit `955cd63` on top of `main`
 > `e4cbbbd`).
 >
@@ -21,18 +21,18 @@
 
 ## 1. Executive Summary
 
-OpenAlgo is a **broker-centric, multi-broker algorithmic trading platform**
+Reference Platform is a **broker-centric, multi-broker algorithmic trading platform**
 (Flask + React/Vite). StockOS AI is an **AI-first research and paper-trading
 platform** (FastAPI + Next.js). They are complementary:
 
-- OpenAlgo excels at **broker connectivity, normalized order APIs, real-time
+- Reference Platform excels at **broker connectivity, normalized order APIs, real-time
   WebSocket streaming, visual strategy building, Python strategy hosting,
   options analytics, analyzer mode, action center, and operational security**.
 - StockOS excels at **AI agent orchestration, self-learning memory, multi-agent
   autopilot, factor research, backtesting, risk x-ray, and a unified Terminal
   Command Center**.
 
-**Recommendation**: Do **not** merge or clone OpenAlgo. Instead, treat it as a
+**Recommendation**: Do **not** merge or clone Reference Platform. Instead, treat it as a
 reference architecture and selectively port its **patterns and capabilities**
 into StockOS, preserving StockOS's AI-first identity and FastAPI/Next.js stack.
 The highest-leverage adoptions are:
@@ -54,16 +54,16 @@ The highest-leverage adoptions are:
 
 ### 2.1 Study method
 
-- Cloned OpenAlgo to a **temporary** directory outside the project for
-  read-only analysis. No OpenAlgo files were copied into StockOS.
-- Indexed OpenAlgo with the codebase knowledge graph (fast mode) and queried
+- Cloned Reference Platform to a **temporary** directory outside the project for
+  read-only analysis. No Reference Platform files were copied into StockOS.
+- Indexed Reference Platform with the codebase knowledge graph (fast mode) and queried
   architecture, routes, clusters, and symbols.
 - Read key source files directly for implementation details.
 - Cross-referenced StockOS files and routes.
 
-### 2.2 OpenAlgo at a glance
+### 2.2 Reference Platform at a glance
 
-| Dimension | OpenAlgo |
+| Dimension | Reference Platform |
 |---|---|
 | Backend | Flask 3.1, Flask-RESTX, Flask-SocketIO, SQLAlchemy 2, APScheduler, DuckDB, ZeroMQ |
 | Frontend | React 19, Vite 8, TypeScript, Tailwind 4, shadcn/ui, TanStack Query, Zustand, CodeMirror, xyflow, Plotly, lightweight-charts |
@@ -98,9 +98,9 @@ The highest-leverage adoptions are:
 
 ## 3. High-Level Architecture Comparison
 
-| Area | OpenAlgo | StockOS | Verdict |
+| Area | Reference Platform | StockOS | Verdict |
 |---|---|---|---|
-| Runtime model | Self-hosted Flask monolith + React SPA served from `frontend/dist` | FastAPI + Next.js (separate dev servers) | Keep StockOS split; adopt OpenAlgo's single-origin serving option for prod |
+| Runtime model | Self-hosted Flask monolith + React SPA served from `frontend/dist` | FastAPI + Next.js (separate dev servers) | Keep StockOS split; adopt Reference Platform's single-origin serving option for prod |
 | Broker integration | Plugin contract (`plugin.json` + `api/*.py`) with lazy auth import | Hand-written adapters (`brokers/*.py`) | Adopt plugin contract to scale brokers |
 | Master data | Per-broker master contract DBs + symbol metadata | Universe/instruments routers | Adopt master contract store |
 | Market data store | DuckDB (Historify) + SQLite (main) | OHLCV service + providers | Adopt DuckDB warehouse |
@@ -116,11 +116,11 @@ The highest-leverage adoptions are:
 
 ---
 
-## 4. Capability Matrix (OpenAlgo vs StockOS)
+## 4. Capability Matrix (Reference Platform vs StockOS)
 
 Legend: ✅ strong, 🟡 partial, ❌ absent.
 
-| Capability | OpenAlgo | StockOS | Gap / Opportunity | Priority |
+| Capability | Reference Platform | StockOS | Gap / Opportunity | Priority |
 |---|---|---|---|---|
 | Multi-broker (36) | ✅ | 🟡 (3) | Broker plugin contract | P1 |
 | Normalized order API | ✅ | 🟡 | Unified `/api/v1`-style methods | P1 |
@@ -138,7 +138,7 @@ Legend: ✅ strong, 🟡 partial, ❌ absent.
 | MCP server | ✅ | 🟡 (service exists) | Expose StockOS as MCP | P2 |
 | Tool approval in agent | ✅ | ❌ | Order approval UX | P1 |
 | Chart markup by agent | ✅ | ❌ | Agent -> chart integration | P2 |
-| 127 indicators (Rust openalgo.ta) | ✅ | 🟡 (Python lib) | Rust indicator backend | P3 |
+| 127 indicators (Rust indicator library) | ✅ | 🟡 (Python lib) | Rust indicator backend | P3 |
 | Security (Argon2/Fernet/CSRF/etc.) | ✅ | 🟡 | Harden auth/security | P1 |
 | Rate limiting | ✅ | ❌ | Add limiter | P1 |
 | CSP/IP ban/TOTP | ✅ | ❌ | Security middleware | P2 |
@@ -159,7 +159,7 @@ Legend: ✅ strong, 🟡 partial, ❌ absent.
 
 ### 5.1 Broker Plugin Contract and Master Contract
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - Directory: `broker/<broker>/` with `plugin.json`, `api/*.py`, `mapping/*.py`,
   `streaming/*.py`, `database/master_contract_db.py`.
@@ -189,7 +189,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.2 Unified Broker REST API
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - Flask-RESTX namespace `/api/v1` with 57 endpoints (place/modify/cancel order,
   smart order, basket, split, GTT, quotes, depth, history, option chain,
@@ -205,9 +205,9 @@ with paper + one live broker, keep paper default.
 
 **Adaptation**
 
-- Add a `backend/app/api/routers/broker_api.py` (or `openalgo_compat.py`)
+- Add a `backend/app/api/routers/broker_api.py` (or `broker_compat.py`)
   exposing normalized broker methods, initially backed by StockOS brokers.
-- Define Pydantic request/response models matching OpenAlgo field names for
+- Define Pydantic request/response models matching Reference Platform field names for
   external compatibility (TradingView/Amibroker/ChartInk).
 - Keep StockOS-native routers for AI/research features.
 
@@ -215,7 +215,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.3 Real-Time WebSocket Streaming
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - Separate WebSocket proxy (port 8765) using ZeroMQ message bus.
 - Brokers implement streaming adapters (`broker/<name>/streaming/`).
@@ -234,7 +234,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.4 Auth and Security Hardening
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `database/auth_db.py`: Argon2 password hashing with pepper; Fernet token
   encryption with PBKDF2 + per-install salt; API keys hashed + encrypted for
@@ -261,7 +261,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.5 Multi-Database Architecture
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - 6 SQLite/DuckDB databases: main, logs, latency, health, sandbox, Historify.
 - `NullPool` to avoid FD leaks; scoped sessions removed on teardown.
@@ -281,7 +281,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.6 Historify (DuckDB Market Data Warehouse)
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `database/historify_db.py` + `services/historify_service.py`.
 - Stores OHLCV in DuckDB; storage intervals `1m`/`D`; computed intervals
@@ -306,7 +306,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.7 Options Analytics Suite
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - 12 pages: Strategy Builder (multi-leg, payoff, Greeks, what-if, basket
   execution), Strategy Portfolio, Option Chain, IV Chart, OI Tracker, Max
@@ -330,7 +330,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.8 Flow Visual Strategy Builder
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `frontend/src/pages/flow/*` + `services/flow_executor_service.py`,
   `flow_workflow_validator.py`, `flow_scheduler_service.py`,
@@ -353,7 +353,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.9 Python Strategy Host (OpenScript)
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `blueprints/python_strategy.py`, `services/openscript_*.py`.
 - CodeMirror editor, process isolation (multiprocessing), IST scheduling,
@@ -372,7 +372,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.10 AI Agent (Agno + LiteLLM + MCP)
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `services/agent/*`: Agno framework, LiteLLM provider layer, MCP client,
   tool catalog (account, chart, indicators, instrument, live, market, options,
@@ -400,7 +400,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.11 Analyzer Mode (Sandbox)
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `services/analyzer_service.py`, `sandbox_service.py`, `sandbox_db.py`.
 - Sandbox capital (~1.1 Cr), realistic margin, square-off schedules,
@@ -419,7 +419,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.12 Action Center (Human Approval)
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `database/action_center_db.py`, `blueprints/orders.py` approval endpoints.
 - Order mode `auto`/`semi_auto` per API key; pending orders with approve/
@@ -439,7 +439,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.13 MCP Server
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `mcp/mcpserver.py` (large) + `blueprints/mcp_http.py`, `mcp_oauth.py`,
   admin remote MCP page; exposes trading tools to Claude/Cursor/etc.
@@ -450,14 +450,14 @@ with paper + one live broker, keep paper default.
 
 **Adaptation**
 
-- Compare OpenAlgo MCP tool catalog and auth (OAuth) to StockOS MCP; add
+- Compare Reference Platform MCP tool catalog and auth (OAuth) to StockOS MCP; add
   missing tools (positions, funds, option chain) and OAuth if needed.
 
 **Effort**: M. **Priority**: P2.
 
 ### 5.14 Monitoring Dashboards
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - Latency monitor (round-trip times), traffic monitor (API usage/errors),
   health monitor (FD/memory/DB/WS/threads), PnL tracker (lightweight-charts).
@@ -475,7 +475,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.15 Notifications (Telegram/WhatsApp)
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - Telegram bot service + blueprint + frontend config/users/analytics.
 - WhatsApp notify endpoint.
@@ -493,7 +493,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.16 ChartInk Integration
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `blueprints/chartink.py`, `pages/chartink/*`: webhook alerts with BUY/SELL/
   SHORT/COVER, intraday square-off, bulk symbols CSV.
@@ -511,7 +511,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.17 Frontend Architecture
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - React 19 + Vite 8 + React Router 7 + TanStack Query + Zustand + shadcn/ui
   (Radix) + Tailwind 4 + CodeMirror + xyflow + Plotly + lightweight-charts +
@@ -534,7 +534,7 @@ with paper + one live broker, keep paper default.
 
 ### 5.18 Market Calendar and Schedulers
 
-**OpenAlgo implementation**
+**Reference Platform implementation**
 
 - `services/market_calendar_service.py`, admin holidays/timings; APScheduler.
 
@@ -584,7 +584,7 @@ with paper + one live broker, keep paper default.
 ## 7. Implementation Plan
 
 ### Phase 0 - Preparation (1 week)
-- [x] Create branch `feature/openalgo-adaptation` from `main`.
+- [x] Create branch `StockAlgo_1` from `main`.
 - [x] Add this document to repo (done).
 - [x] Add dependency list updates (`argon2-cffi`, `cryptography`, `duckdb`,
       `slowapi`, `pyotp`, `python-telegram-bot`, `agno`, `litellm`,
@@ -675,16 +675,16 @@ with paper + one live broker, keep paper default.
 
 ### 7.1 "No clone" implementation rules
 - Rewrite all code in StockOS style (FastAPI, Pydantic, Next.js).
-- Do not copy OpenAlgo files verbatim.
+- Do not copy Reference Platform files verbatim.
 - Adapt naming to StockOS conventions.
-- Keep OpenAlgo as reference only; cite file paths in PRs.
+- Keep Reference Platform as reference only; cite file paths in PRs.
 - Preserve StockOS AI-first differentiators.
 
 ---
 
-## 8. File/Module Mapping (OpenAlgo -> StockOS)
+## 8. File/Module Mapping (Reference Platform -> StockOS)
 
-| OpenAlgo path | StockOS target | Action |
+| Reference Platform path | StockOS target | Action |
 |---|---|---|
 | `utils/plugin_loader.py` | `backend/app/brokers/plugin_loader.py` | Adapt |
 | `broker/*/plugin.json` | `backend/app/brokers/*/plugin.json` | Adapt |
@@ -733,10 +733,10 @@ with paper + one live broker, keep paper default.
 
 ---
 
-## 12. Self-Sufficiency Checklist (No OpenAlgo Dependency)
+## 12. Self-Sufficiency Checklist (No Reference Platform Dependency)
 
-The following checklist ensures StockOS AI can fully replace OpenAlgo for
-day-to-day trading. Every OpenAlgo capability must map to a StockOS
+The following checklist ensures StockOS AI can fully replace Reference Platform for
+day-to-day trading. Every Reference Platform capability must map to a StockOS
 capability (existing or planned). Items marked **EXISTING** are already in
 StockOS; **PLANNED** maps to phases above.
 
@@ -828,7 +828,7 @@ StockOS; **PLANNED** maps to phases above.
 - Portfolio/SIP backtesting — EXISTING + PLANNED
 - Portfolio analyzer — PLANNED
 
-### 12.11 StockOS strengths (keep, not in OpenAlgo)
+### 12.11 StockOS strengths (keep, not in Reference Platform)
 - Factor research (Alpha101)
 - AI autopilot missions
 - Self-learning memory
@@ -836,7 +836,7 @@ StockOS; **PLANNED** maps to phases above.
 - Multi-agent orchestration
 
 **Conclusion**: With Phases 1–9 (Tier 1 + Tier 2) complete, StockOS AI reaches
-functional parity for trading and exceeds OpenAlgo in AI/agentic capabilities.
+functional parity for trading and exceeds Reference Platform in AI/agentic capabilities.
 Tier 3 items are optional enhancements; none block full independence.
 
 ---
@@ -852,7 +852,7 @@ Tier 3 items are optional enhancements; none block full independence.
 
 ---
 
-## Appendix A — OpenAlgo Route Inventory (summary)
+## Appendix A — Reference Platform Route Inventory (summary)
 
 - `/api/v1`: 57 REST method/path pairs (orders, portfolio, market data,
   options, funds, analyzer, telegram).
@@ -868,7 +868,7 @@ Tier 3 items are optional enhancements; none block full independence.
 - Next.js pages: home, trading/*, portfolio, prediction, options, scanner,
   screener, sectors, factors, intraday, chat, settings, etc.
 
-## Appendix C — Key OpenAlgo Dependencies
+## Appendix C — Key Reference Platform Dependencies
 
 Flask 3.1, Flask-RESTX, Flask-SocketIO, SQLAlchemy 2, DuckDB, ZeroMQ,
 Argon2-CFFI, Cryptography, Agno, LiteLLM, APScheduler, python-telegram-bot,
@@ -877,7 +877,7 @@ lightweight-charts, Tailwind 4, shadcn/ui (Radix), Biome, Playwright.
 
 ---
 
-*Document generated from a read-only study of OpenAlgo. No code or files from
-OpenAlgo were copied into StockOS. Implementations must be rewritten and
+*Document generated from a read-only study of Reference Platform. No code or files from
+Reference Platform were copied into StockOS. Implementations must be rewritten and
 integrated per StockOS conventions.*
 

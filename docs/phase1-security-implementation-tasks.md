@@ -1,9 +1,9 @@
 # Phase 1 — Security and Auth: Concrete Implementation Tasks
 
-Branch: `feature/openalgo-adaptation` (local only, not pushed)
+Branch: `StockAlgo_1`
 
 ## Scope for this iteration
-Implement the security foundation (OpenAlgo-inspired) without breaking existing
+Implement the security foundation (adapted from a reference design) without breaking existing
 StockOS auth/tests.
 
 ## Completed
@@ -37,4 +37,4 @@ StockOS auth/tests.
 - `backend/app/api/schemas.py`
 - `backend/app/api/routers/auth.py`
 - `backend/tests/conftest.py`
-- `docs/openalgo-deep-study-and-implementation-plan.md`
+- `docs/reference-platform-study-and-implementation-plan.md`

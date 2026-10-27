@@ -1,6 +1,6 @@
 # Phase 3 — Historify: Concrete Implementation Tasks
 
-Branch: `feature/openalgo-adaptation` (local only)
+Branch: `StockAlgo_1`
 
 ## Completed
 - [x] Add DuckDB OHLCV warehouse service (`app/services/historify/store.py`).

@@ -1,7 +1,7 @@
 # Project State — StockOS AI
 
 ## Branch / Revision
-- Branch: `feature/openalgo-adaptation`
+- Branch: `StockAlgo_1`
 - Base: `main` (`e4cbbbd`)
 - Latest commits:
   - `326d42a` feat(security): phase1 argon2, fernet, rate limits, headers, totp
@@ -22,7 +22,7 @@
 - `docs/phase4-analyzer-action-center-tasks.md`
 
 ## Verification
-- Backend: `261 passed` (pytest) on `feature/openalgo-adaptation`.
+- Backend: `261 passed` (pytest) on `StockAlgo_1`.
 - Frontend: `npm run typecheck` and `npm run build` passed.
 - Runtime smoke test: all GET API routes returned 200 except expected 404/422 for missing path/query parameters; fixed `/api/trading/providers` (`StockOSSettings` missing `ta_default_provider`).
 - Existing SQLite database upgraded successfully on startup (TOTP columns and new tables added).

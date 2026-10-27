@@ -1,6 +1,6 @@
 # Phase 4 — Analyzer Mode + Action Center: Concrete Implementation Tasks
 
-Branch: `feature/openalgo-adaptation` (local only)
+Branch: `StockAlgo_1`
 
 ## Completed
 - [x] Add `ActionCenterItem` model.

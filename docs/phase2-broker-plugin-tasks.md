@@ -1,6 +1,6 @@
 # Phase 2 — Broker Plugin Contract: Concrete Implementation Tasks
 
-Branch: `feature/openalgo-adaptation` (local only)
+Branch: `StockAlgo_1`
 
 ## Completed
 - [x] Add `app/brokers/plugins/<name>/plugin.json` for paper, zerodha, angelone.

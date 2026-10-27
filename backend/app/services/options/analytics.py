@@ -9,7 +9,7 @@ open interest is not available on every free scanner).
 The functions are intentionally side-effect free so they can be unit tested
 with synthetic chains without touching the network.
 
-Analyses implemented here (OpenAlgo-inspired, re-implemented in StockOS style):
+Analyses implemented here (re-implemented in StockOS style):
 
 * :func:`max_pain`            -- strike where option writers' payout is minimal.
 * :func:`oi_profile`          -- open interest by strike + put/call ratio.
