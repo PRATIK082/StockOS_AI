@@ -1,60 +1,140 @@
-"""Simple startup script for StockOS AI"""
-import subprocess
-import time
-import sys
+"""One-command startup for StockOS AI (backend + frontend).
+
+Usage:
+    py .\run.py
+
+The backend MUST run with the project virtual environment
+(``backend/.venv``) because it owns the pinned dependencies
+(FastAPI, SQLAlchemy, slowapi, duckdb, tradingagents, ...). Launching it
+with the system interpreter fails with errors such as
+``ModuleNotFoundError: No module named 'slowapi'``.
+
+This script therefore:
+  1. Locates the project virtualenv interpreter.
+  2. Preflights the backend imports and reports a clear, actionable error
+     if the environment is not ready.
+  3. Starts uvicorn (hot reload) and the Next.js dev server, resolving
+     paths relative to this file so the script works from any CWD.
+"""
+
+from __future__ import annotations
+
 import os
+import subprocess
+import sys
+import time
+from pathlib import Path
 
-def start_backend():
-    """Start the backend server"""
+ROOT = Path(__file__).resolve().parent
+BACKEND = ROOT / "backend"
+FRONTEND = ROOT / "frontend"
+BACKEND_PORT = int(os.environ.get("BACKEND_PORT", "8000"))
+FRONTEND_PORT = int(os.environ.get("FRONTEND_PORT", "3000"))
+
+
+def find_backend_python() -> str | None:
+    """Return the interpreter of the project virtualenv, if it exists."""
+    candidates = [
+        BACKEND / ".venv" / "Scripts" / "python.exe",  # Windows
+        BACKEND / ".venv" / "bin" / "python",  # POSIX
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def preflight_backend(python: str) -> bool:
+    """Import the FastAPI app to fail fast with a readable message."""
+    code = "import app.main; print('backend-import-ok')"
+    try:
+        result = subprocess.run(
+            [python, "-c", code],
+            cwd=str(BACKEND),
+            capture_output=True,
+            text=True,
+        )
+    except OSError as exc:  # pragma: no cover - defensive
+        print(f"[!] Could not run backend interpreter: {exc}")
+        return False
+
+    if result.returncode != 0:
+        print("[!] Backend dependencies are not installed in the virtualenv.")
+        tail = (result.stderr or "").strip().splitlines()[-12:]
+        for line in tail:
+            print(f"    {line}")
+        print("\n    Fix it with:")
+        print(f"      {python} -m pip install -e .")
+        print("    (or: cd backend && uv sync)")
+        return False
+
+    print("[OK] Backend dependencies verified.")
+    return True
+
+
+def start_backend(python: str) -> subprocess.Popen:
     print("Starting backend server...")
-    backend_process = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--reload", "--port", "8000"],
-        cwd="backend",
-        shell=True
+    return subprocess.Popen(
+        [
+            python,
+            "-m",
+            "uvicorn",
+            "app.main:app",
+            "--reload",
+            "--port",
+            str(BACKEND_PORT),
+        ],
+        cwd=str(BACKEND),
     )
-    return backend_process
 
-def start_frontend():
-    """Start the frontend server"""
+
+def start_frontend() -> subprocess.Popen:
     print("Starting frontend server...")
-    frontend_process = subprocess.Popen(
-        ["npm", "run", "dev"],
-        cwd="frontend",
-        shell=True
-    )
-    return frontend_process
+    npm = "npm.cmd" if os.name == "nt" else "npm"
+    return subprocess.Popen([npm, "run", "dev"], cwd=str(FRONTEND))
 
-def main():
+
+def main() -> int:
     print("=" * 50)
     print("StockOS AI - Starting Services")
     print("=" * 50)
-    
-    # Start backend
-    backend = start_backend()
-    print("Backend starting on http://localhost:8000")
-    print("API Docs: http://localhost:8000/docs")
-    
-    # Wait for backend to start
+
+    python = find_backend_python()
+    if python is None:
+        print("[!] Virtualenv not found at backend/.venv")
+        print("    Create it with:  cd backend && uv sync")
+        print("    or:              py -3.12 -m venv backend\\.venv")
+        return 1
+    print(f"Using backend interpreter: {python}")
+
+    if not preflight_backend(python):
+        return 1
+
+    backend = start_backend(python)
+    print(f"Backend starting on http://localhost:{BACKEND_PORT}")
+    print(f"API Docs: http://localhost:{BACKEND_PORT}/docs")
+
     time.sleep(5)
-    
-    # Start frontend
+
     frontend = start_frontend()
-    print("Frontend starting on http://localhost:3000")
-    
+    print(f"Frontend starting on http://localhost:{FRONTEND_PORT}")
+
     print("\n" + "=" * 50)
     print("Services are starting...")
     print("Press Ctrl+C to stop all services")
     print("=" * 50)
-    
+
     try:
-        # Keep running
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         print("\nShutting down services...")
-        backend.terminate()
-        frontend.terminate()
+        for proc in (backend, frontend):
+            if proc and proc.poll() is None:
+                proc.terminate()
         print("Shutdown complete!")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
