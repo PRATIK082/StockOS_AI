@@ -221,3 +221,42 @@ def test_backtest_endpoint_unknown_strategy(client: TestClient, auth: dict, monk
         json={"symbol": "TEST", "strategy": "does_not_exist"},
     )
     assert r.status_code == 422
+
+
+def test_engine_rejects_zero_window_with_friendly_message() -> None:
+    """fast=0 (e.g. from a cleared form field) must fail with a human message,
+    not pandas' 'min_periods 1 must be <= window 0'."""
+    with pytest.raises(ValueError, match='"fast" must be between'):
+        _engine_run(strategy="moving_average_crossover", params={"fast": 0, "slow": 50})
+
+
+def test_engine_rejects_fast_not_below_slow() -> None:
+    with pytest.raises(ValueError, match='must be smaller than "slow"'):
+        _engine_run(strategy="moving_average_crossover", params={"fast": 50, "slow": 20})
+
+
+def test_engine_rejects_non_integer_window() -> None:
+    with pytest.raises(ValueError, match="whole number"):
+        _engine_run(strategy="moving_average_crossover", params={"fast": 10.5, "slow": 50})
+
+
+def test_engine_accepts_integral_float_window() -> None:
+    res = _engine_run(strategy="moving_average_crossover", params={"fast": 10.0, "slow": 30.0})
+    assert len(res["positions"]) == 300
+
+
+def test_backtest_endpoint_zero_window_is_422_with_message(client: TestClient, auth: dict, monkeypatch) -> None:
+    from app.api.routers import analysis
+
+    async def _fake_auto(symbol, *, interval="1d", period="1y", chain=None):
+        return _synthetic_history()
+
+    monkeypatch.setattr(analysis.market_data, "get_history_auto", _fake_auto)
+    r = client.post(
+        "/api/analysis/backtest",
+        headers=auth,
+        json={"symbol": "TEST", "strategy": "moving_average_crossover", "params": {"fast": 0, "slow": 50}},
+    )
+    assert r.status_code == 422
+    assert "fast" in r.json()["detail"]
+    assert "min_periods" not in r.json()["detail"]

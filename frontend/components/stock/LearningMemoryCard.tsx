@@ -33,7 +33,7 @@ export default function LearningMemoryCard() {
     if (typeof value === "string") return value;
     if (value == null) return "";
     try {
-      return JSON.stringify(value);
+      return JSON.stringify(value, null, 2);
     } catch {
       return String(value);
     }
@@ -59,7 +59,7 @@ export default function LearningMemoryCard() {
             {items.slice(0, 8).map((m) => (
               <li key={m.key} className="rounded-md border border-border bg-muted/30 p-2 text-xs">
                 <p className="font-medium text-foreground">{String(m.key)}</p>
-                <p className="text-muted-foreground line-clamp-2">{renderValue(m.value)}</p>
+                <pre className="line-clamp-6 whitespace-pre-wrap break-words text-muted-foreground">{renderValue(m.value)}</pre>
               </li>
             ))}
           </ul>
