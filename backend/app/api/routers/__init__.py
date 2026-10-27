@@ -16,6 +16,7 @@ from app.api.routers import (
     memory,
     orders,
     options,
+    options_analytics,
     portfolio,
     predictions,
     quant,
@@ -44,6 +45,8 @@ api_router.include_router(instruments.router)
 api_router.include_router(watchlist.router)
 api_router.include_router(portfolio.router)
 api_router.include_router(options.router)
+api_router.include_router(options_analytics.analytics_router)
+api_router.include_router(options_analytics.margin_router)
 api_router.include_router(research.router)
 api_router.include_router(analysis.router)
 api_router.include_router(trading.router)
