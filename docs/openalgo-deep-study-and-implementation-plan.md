@@ -583,46 +583,46 @@ with paper + one live broker, keep paper default.
 
 ## 7. Implementation Plan
 
-### Phase 0 — Preparation (1 week)
-- [ ] Create branch `feature/openalgo-adaptation` from `main`.
-- [ ] Add this document to repo (done).
-- [ ] Add dependency list updates (`argon2-cffi`, `cryptography`, `duckdb`,
+### Phase 0 - Preparation (1 week)
+- [x] Create branch `feature/openalgo-adaptation` from `main`.
+- [x] Add this document to repo (done).
+- [x] Add dependency list updates (`argon2-cffi`, `cryptography`, `duckdb`,
       `slowapi`, `pyotp`, `python-telegram-bot`, `agno`, `litellm`,
       `@xyflow/react`, `plotly.js`, `@uiw/react-codemirror`, shadcn).
-- [ ] Define `broker/` plugin directory convention in StockOS.
+- [x] Define `broker/` plugin directory convention in StockOS.
 
-### Phase 1 — Security and Auth (2-3 weeks)
-- [ ] Implement Argon2 password hashing + pepper in `core/security.py`.
-- [ ] Implement Fernet token encryption with per-install salt.
-- [ ] Add rate limiting middleware (slowapi) to FastAPI.
-- [ ] Add security headers middleware (CSP, X-Frame-Options, etc.).
-- [ ] Add TOTP 2FA endpoints + UI.
-- [ ] Add session expiry + broker token revocation.
-- [ ] Tests: auth security unit + integration.
+### Phase 1 - Security and Auth (2-3 weeks)
+- [x] Implement Argon2 password hashing + pepper in `core/security.py`.
+- [x] Implement Fernet token encryption with per-install salt.
+- [x] Add rate limiting middleware (slowapi) to FastAPI.
+- [x] Add security headers middleware (CSP, X-Frame-Options, etc.).
+- [x] Add TOTP 2FA endpoints + UI.
+- [x] Add session expiry + broker token revocation.
+- [x] Tests: auth security unit + integration.
 
-### Phase 2 — Broker Plugin Contract (3-4 weeks)
-- [ ] Create `backend/app/brokers/<name>/plugin.json` for paper/zerodha/angelone.
-- [ ] Add `plugin_loader.py` (lazy auth import).
-- [ ] Refactor existing adapters to implement common interface.
-- [ ] Add master contract tables + service + router.
-- [ ] Tests: plugin loading + master contract.
+### Phase 2 - Broker Plugin Contract (3-4 weeks)
+- [x] Create `backend/app/brokers/<name>/plugin.json` for paper/zerodha/angelone.
+- [x] Add `plugin_loader.py` (lazy auth import).
+- [x] Refactor existing adapters to implement common interface.
+- [x] Add master contract tables + service + router.
+- [x] Tests: plugin loading + master contract.
 
-### Phase 3 — Historify Market Data Warehouse (3-4 weeks)
-- [ ] Add DuckDB integration (`services/historify/`).
-- [ ] Implement watchlist, catalog, download jobs (pause/resume/cancel).
-- [ ] Add incremental downloads + zombie cleanup.
-- [ ] Add CSV/Parquet import/export.
-- [ ] Add FNO discovery (underlyings/expiries/chains).
-- [ ] Add `/historify/*` routers + frontend page.
-- [ ] Tests: DuckDB store + job lifecycle.
+### Phase 3 - Historify Market Data Warehouse (3-4 weeks)
+- [x] Add DuckDB integration (`services/historify/`).
+- [x] Implement watchlist, catalog, download jobs (pause/resume/cancel).
+- [x] Add incremental downloads + zombie cleanup.
+- [x] Add CSV/Parquet import/export.
+- [x] Add FNO discovery (underlyings/expiries/chains).
+- [ ] Add `/historify/*` routers + frontend page. (routers done; frontend page pending)
+- [x] Tests: DuckDB store + job lifecycle.
 
-### Phase 4 — Analyzer Mode + Action Center (2-3 weeks)
-- [ ] Enhance paper broker with sandbox capital/margin/square-off.
-- [ ] Add action center table + service + endpoints.
-- [ ] Route orders through approval queue in semi-auto mode.
-- [ ] Add smart/basket/split order workflows + position sizing.
-- [ ] Add frontend Action Center page + approval UX.
-- [ ] Tests: approval flow.
+### Phase 4 - Analyzer Mode + Action Center (2-3 weeks)
+- [x] Enhance paper broker with sandbox capital/margin/square-off.
+- [x] Add action center table + service + endpoints.
+- [x] Route orders through approval queue in semi-auto mode.
+- [x] Add smart/basket/split order workflows + position sizing.
+- [ ] Add frontend Action Center page + approval UX. (backend done; frontend page pending)
+- [x] Tests: approval flow.
 
 ### Phase 5 — AI Agent Upgrade (4-6 weeks)
 - [ ] Migrate agent runtime to Agno + LiteLLM (or adapt).

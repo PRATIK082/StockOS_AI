@@ -24,7 +24,7 @@ interface SettingsData {
 export default function BrokerManagementPage() {
   const { data: settings, isLoading } = useQuery<SettingsData>({
     queryKey: ["settings"],
-    queryFn: () => api.get("/api/v1/settings"),
+    queryFn: () => api.get("/v1/settings/"),
     retry: false,
   });
 
@@ -46,7 +46,7 @@ export default function BrokerManagementPage() {
 
   const mutate = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
-      return api.patch("/api/v1/settings", values);
+      return api.patch("/v1/settings/", values);
     },
     onSuccess: () => {
       setStatus({ type: "success", msg: "Broker settings updated" });
