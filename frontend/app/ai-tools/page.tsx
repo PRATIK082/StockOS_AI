@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api, ApiError, fmt } from "@/lib/api";
+import { SymbolSearch } from "@/components/stock/symbol-search";
 import { cn } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -958,12 +959,11 @@ export default function AiToolsPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-2">
                     <Label htmlFor="markup-symbol">Symbol</Label>
-                    <Input
-                      id="markup-symbol"
+                    <SymbolSearch
                       value={markupForm.symbol}
-                      onChange={(e) => setMarkupForm((prev) => ({ ...prev, symbol: e.target.value }))}
-                      placeholder="AAPL"
-                      required
+                      onChange={(v) => setMarkupForm((prev) => ({ ...prev, symbol: v }))}
+                      onSelect={(v) => setMarkupForm((prev) => ({ ...prev, symbol: v }))}
+                      placeholder="Type to search, e.g. RELIANCE…"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1014,7 +1014,7 @@ export default function AiToolsPage() {
                 </div>
 
                 <div className="flex justify-end">
-                  <Button type="submit" disabled={markupMutation.isPending}>
+                  <Button type="submit" disabled={markupMutation.isPending || !markupForm.symbol.trim()}>
                     {markupMutation.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (

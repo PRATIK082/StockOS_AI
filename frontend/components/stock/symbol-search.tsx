@@ -10,6 +10,10 @@ interface SymbolSearchProps {
   onSelect: (symbol: string) => void
   placeholder?: string
   className?: string
+  /** Controlled input text. When omitted the component manages its own state. */
+  value?: string
+  /** Fires on every keystroke in controlled mode (and on suggestion pick). */
+  onChange?: (value: string) => void
 }
 
 interface SearchResult {
@@ -20,11 +24,18 @@ interface SearchResult {
   index?: boolean
 }
 
-export function SymbolSearch({ onSelect, placeholder = "Search stocks...", className }: SymbolSearchProps) {
+export function SymbolSearch({ onSelect, placeholder = "Search stocks...", className, value, onChange }: SymbolSearchProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<SearchResult[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const text = value !== undefined ? value : query
+
+  const handleInput = (v: string) => {
+    if (onChange) onChange(v)
+    else setQuery(v)
+    setIsOpen(true)
+  }
 
   const searchSymbols = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
@@ -48,15 +59,16 @@ export function SymbolSearch({ onSelect, placeholder = "Search stocks...", class
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      searchSymbols(query)
+      searchSymbols(text)
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [query, searchSymbols])
+  }, [text, searchSymbols])
 
   const handleSelect = (symbol: string) => {
     onSelect(symbol)
-    setQuery(symbol)
+    if (onChange) onChange(symbol)
+    else setQuery(symbol)
     setIsOpen(false)
   }
 
@@ -66,18 +78,15 @@ export function SymbolSearch({ onSelect, placeholder = "Search stocks...", class
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            setIsOpen(true)
-          }}
+          value={text}
+          onChange={(e) => handleInput(e.target.value)}
           onFocus={() => setIsOpen(true)}
           placeholder={placeholder}
           className="pl-10"
         />
       </div>
 
-      {isOpen && (query.length > 0) && (
+      {isOpen && (text.length > 0) && (
         <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-auto">
           {loading ? (
             <div className="p-4 text-center text-sm text-muted-foreground">Searching...</div>
