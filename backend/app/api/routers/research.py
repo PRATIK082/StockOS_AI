@@ -79,3 +79,23 @@ async def llm_models(provider: str | None = None) -> dict:
         return {"models": await gateway.list_models(provider)}
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Failed to list models: {exc}") from exc
+
+
+@router.get("/llm/registry")
+async def llm_registry() -> dict:
+    """Model registry UI data: providers with their available models."""
+    from app.services.llm.gateway import SUPPORTED_PROVIDERS
+
+    out = []
+    for pid in sorted(SUPPORTED_PROVIDERS):
+        try:
+            models = await gateway.list_models(pid)
+        except Exception:  # noqa: BLE001
+            models = []
+        out.append({"provider": pid, "models": models})
+    return {"default_provider": __import__("app.core.config", fromlist=["settings"]).settings.llm_default_provider, "providers": out}
+
+
+@router.get("/models/registry")
+async def models_registry_alias() -> dict:
+    return await llm_registry()

@@ -65,13 +65,25 @@ class StockOSSettings(BaseSettings):
     max_fno_lots: int = 10
 
     # ------------------------------------------------------------------ #
+    # Analyzer mode (sandbox / paper-live simulation)
+    # ------------------------------------------------------------------ #
+    analyzer_mode: bool = False
+    analyzer_sandbox_capital: float = 1000000.0
+    analyzer_margin_percent: float = 100.0
+    analyzer_square_off_time: str = "15:15"
+    analyzer_session_reset_time: str = "00:00"
+
+    # ------------------------------------------------------------------ #
     # JWT / token settings (for security module compatibility)
     # ------------------------------------------------------------------ #
     access_token_expire_minutes: int = 30
     jwt_secret: str = "super-secret-key-change-me"
     jwt_algorithm: str = "HS256"
-
-    # ------------------------------------------------------------------ #
+    password_pepper: str = ""  # optional application pepper for password hashing
+    rate_limit_default_per_minute: int = 120
+    rate_limit_auth_per_minute: int = 10
+    ip_ban_threshold: int = 5
+    ip_ban_window_minutes: int = 15    # ------------------------------------------------------------------ #
     # LLM providers (local-first; all optional)
     # ------------------------------------------------------------------ #
     llm_default_provider: str = "ollama"
@@ -121,6 +133,14 @@ class StockOSSettings(BaseSettings):
     @property
     def is_live(self) -> bool:
         return self.execution_mode == "LIVE_ENABLED"
+
+    @property
+    def is_analyzer_mode(self) -> bool:
+        return bool(self.analyzer_mode)
+
+    @property
+    def analyzer_enabled(self) -> bool:
+        return bool(self.analyzer_mode)
 
     @property
     def is_approval_required(self) -> bool:

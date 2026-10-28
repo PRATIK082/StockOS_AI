@@ -1,4 +1,5 @@
 ﻿from app.services.agents.base import Agent, AgentContext, AgentResult
+from app.services.agents.chart_markup import ChartMarkupService, chart_markup_service
 from app.services.agents.chat import ChatAgent
 from app.services.agents.orchestrator import Orchestrator, orchestrator
 from app.services.agents.research import ResearchAgent
@@ -13,4 +14,6 @@ __all__ = [
     "ResearchAgent",
     "TechnicalAgent",
     "orchestrator",
+    "ChartMarkupService",
+    "chart_markup_service",
 ]

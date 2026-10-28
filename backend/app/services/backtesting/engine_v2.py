@@ -61,6 +61,51 @@ def _resolved_params(spec: StrategySpec, params: dict | None) -> dict:
     return {k: v for k, v in (params or {}).items() if k in allowed}
 
 
+def _validate_params(spec: StrategySpec, params: dict) -> dict:
+    """Enforce the strategy's ``param_schema`` (min/max/type) on merged params.
+
+    Without this, an out-of-range window (e.g. ``fast=0`` from a cleared form
+    field) falls through to pandas and surfaces as a cryptic
+    ``min_periods 1 must be <= window 0`` error. Raise ``ValueError`` with a
+    human message instead — the API layer maps it to a 422.
+    """
+    checked = dict(params)
+    for key, value in checked.items():
+        schema = spec.param_schema.get(key)
+        if not schema or not isinstance(value, (int, float)):
+            continue
+        ptype = schema.get("type")
+        if ptype == "int":
+            if isinstance(value, float):
+                if not value.is_integer():
+                    raise ValueError(
+                        f'"{key}" must be a whole number (got {value})'
+                    )
+                checked[key] = value = int(value)
+            lo, hi = schema.get("min"), schema.get("max")
+            if (lo is not None and value < lo) or (hi is not None and value > hi):
+                bounds = (
+                    f"between {lo} and {hi}"
+                    if lo is not None and hi is not None
+                    else (f">= {lo}" if lo is not None else f"<= {hi}")
+                )
+                raise ValueError(f'"{key}" must be {bounds} (got {value})')
+        elif ptype == "float":
+            lo, hi = schema.get("min"), schema.get("max")
+            if (lo is not None and value < lo) or (hi is not None and value > hi):
+                raise ValueError(f'"{key}" out of range (got {value})')
+    for prefix in ("", "sma_", "macd_", "ema_"):
+        fast_k, slow_k = f"{prefix}fast", f"{prefix}slow"
+        if fast_k in checked and slow_k in checked:
+            fast_v, slow_v = checked[fast_k], checked[slow_k]
+            if isinstance(fast_v, (int, float)) and isinstance(slow_v, (int, float)):
+                if fast_v >= slow_v:
+                    raise ValueError(
+                        f'"{fast_k}" ({fast_v}) must be smaller than "{slow_k}" ({slow_v})'
+                    )
+    return checked
+
+
 def build_positions(df: pd.DataFrame, request: BacktestRequest) -> pd.Series:
     """Produce the 0/1 position series for a request (built-in or custom)."""
     if request.custom_code and request.custom_code.strip():
@@ -70,7 +115,7 @@ def build_positions(df: pd.DataFrame, request: BacktestRequest) -> pd.Series:
         raise ValueError(
             f"unknown strategy '{request.strategy}' (choose from {sorted(s.name for s in STRATEGIES.values())})"
         )
-    params = {**spec.default_params, **_resolved_params(spec, request.params)}
+    params = _validate_params(spec, {**spec.default_params, **_resolved_params(spec, request.params)})
     return spec.fn(df, **params)
 
 
@@ -177,7 +222,7 @@ def run_backtest(df: pd.DataFrame, request: BacktestRequest) -> dict:
                     request.custom_code, slice_df, request.params, use_subprocess=False
                 )
             spec = get_strategy(request.strategy)
-            params = {**spec.default_params, **_resolved_params(spec, request.params)}
+            params = _validate_params(spec, {**spec.default_params, **_resolved_params(spec, request.params)})
             return spec.fn(slice_df, **params)
 
         result["walk_forward"] = walk_forward(

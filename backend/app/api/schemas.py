@@ -20,12 +20,23 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     identifier: str  # email or username
     password: str
+    totp_code: str | None = None
 
 
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: dict
+
+
+class TOTPSetupResponse(BaseModel):
+    secret: str
+    provisioning_uri: str
+    enabled: bool = False
+
+
+class TOTPVerifyRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=8)
 
 
 # --- Market --------------------------------------------------------------------

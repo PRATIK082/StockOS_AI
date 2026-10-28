@@ -17,6 +17,7 @@ from ...services.technical.indicators import TechnicalIndicators
 from ...services.news.service import NewsService
 from ...services.backtesting.engine import BacktestingEngine
 from ...services.data.service import MarketDataService, market_data
+from ...services.agents.chart_markup import chart_markup_service
 from ...services.data.providers.base import OptionsUnavailableError
 from ...services.analysis.sectors import sector_analysis_service
 from ...services.options.signals import options_signals_service
@@ -778,3 +779,13 @@ async def run_backtest_v2(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
+
+@router.get("/chart-markup")
+async def analysis_chart_markup(
+    symbol: str = Query(...),
+    interval: str = Query("1d"),
+    period: str = Query("3mo"),
+    provider: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    return await chart_markup_service.build(symbol, interval=interval, period=period, provider=provider)

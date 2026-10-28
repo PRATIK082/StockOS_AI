@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import decode_token, role_at_least
+from app.core.security import decode_token, is_token_revoked, role_at_least
 from app.db.models import User
 from app.db.session import get_session
 
@@ -25,6 +25,9 @@ async def get_current_user(
     payload = decode_token(creds.credentials)
     if payload is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+    jti = payload.get("jti")
+    if jti and is_token_revoked(jti):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token has been revoked")
     from sqlalchemy import select
 
     user = await session.scalar(select(User).where(User.id == payload["sub"]))

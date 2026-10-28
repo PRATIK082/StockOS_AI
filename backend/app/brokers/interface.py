@@ -172,6 +172,21 @@ class BrokerBase(ABC):
     """Abstract base class for all StockOS broker adapters."""
 
     name: str = "base-broker"
+    _analyzer_mode: bool = False
+
+    @property
+    def analyzer_mode(self) -> bool:
+        return bool(self._analyzer_mode)
+
+    @analyzer_mode.setter
+    def analyzer_mode(self, value: bool) -> None:
+        self._analyzer_mode = bool(value)
+
+    def toggle_analyzer(self, enabled: bool | None = None) -> bool:
+        if enabled is None:
+            enabled = not self.analyzer_mode
+        self.analyzer_mode = bool(enabled)
+        return self.analyzer_mode
 
     # ------------------------------------------------------------------
     # Lifecycle

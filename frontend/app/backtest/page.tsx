@@ -150,19 +150,24 @@ export default function BacktestPage() {
       for (const [k, v] of Object.entries(activeStrategy.default_params)) next[k] = String(v);
       // Reset to the new strategy's defaults; only carry over user edits for
       // params that still exist (never leak keys from a previous strategy).
+      // Runs on meta load too — otherwise the inputs stay blank, blank parses
+      // as 0, and the engine rejects windows like fast=0.
       setParams((prev) => {
         const merged: Record<string, string> = { ...next };
         for (const [k, v] of Object.entries(prev)) if (k in next) merged[k] = v;
         return merged;
       });
     }
-  }, [strategy]);
+  }, [strategy, meta]);
 
   const runBacktest = async () => {
     setLoading(true);
     setError(null);
     const parsed: Record<string, number> = {};
     for (const [k, v] of Object.entries(params)) {
+      // A cleared field means "use the strategy default", not 0 —
+      // Number("") is 0 and 0 is an invalid window for every indicator.
+      if (v.trim() === "") continue;
       const n = Number(v);
       if (Number.isFinite(n)) parsed[k] = n;
     }
@@ -240,8 +245,8 @@ export default function BacktestPage() {
           <CardTitle className="text-base">Configuration</CardTitle>
           {meta && meta.costs && (
             <CardDescription>
-              Costs: buy {String(meta.costs.buy_cost_pct)}% · sell {String(meta.costs.sell_cost_pct)}% · per-trade{" "}
-              {String(meta.costs.flat_fee)} ({intraday ? "intraday" : "delivery"} stack)
+              Costs: buy {String(meta.costs.buy_cost_pct)}% · sell {String(meta.costs.sell_cost_pct)}% · round-trip{" "}
+              {String(meta.costs.round_trip_cost_pct)}% ({intraday ? "intraday" : "delivery"} stack)
             </CardDescription>
           )}
         </CardHeader>
@@ -313,6 +318,8 @@ export default function BacktestPage() {
                     <Input
                       type="number"
                       step={schema.step ?? 1}
+                      min={schema.min}
+                      max={schema.max}
                       value={params[k] ?? ""}
                       onChange={(e) => setParams((p) => ({ ...p, [k]: e.target.value }))}
                     />

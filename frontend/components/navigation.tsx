@@ -23,6 +23,9 @@ import {
   Activity,
   Sparkles,
   ChevronDown,
+  CheckSquare,
+  Wrench,
+  Database,
 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 
@@ -47,6 +50,8 @@ const groups: NavGroup[] = [
     items: [
       { href: "/prediction", label: "Prediction", icon: Target },
       { href: "/factors", label: "Factor Lab", icon: Sigma },
+      { href: "/options-analytics", label: "Options Analytics", icon: DollarSign },
+      { href: "/historify", label: "Historify", icon: Database },
       { href: "/backtest", label: "Backtest", icon: BarChart3 },
       { href: "/scheduled", label: "Scheduled", icon: CalendarClock },
     ],
@@ -57,6 +62,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/trading", label: "Terminal", icon: Bot },
       { href: "/trading/autopilot", label: "AI Agent", icon: Sparkles },
+      { href: "/action-center", label: "Action Center", icon: CheckSquare },
       { href: "/options", label: "Options", icon: DollarSign },
       { href: "/portfolio", label: "Portfolio", icon: Briefcase },
     ],
@@ -66,6 +72,7 @@ const groups: NavGroup[] = [
     icon: MessageSquare,
     items: [
       { href: "/chat", label: "AI Chat", icon: MessageSquare },
+      { href: "/ai-tools", label: "AI Tools", icon: Wrench },
       { href: "/watchlist", label: "Watchlist", icon: Eye },
     ],
   },

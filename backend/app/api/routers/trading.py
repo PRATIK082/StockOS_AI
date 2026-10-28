@@ -73,7 +73,26 @@ def _pop_queue(run_id: str) -> None:
 
 @router.get("/providers")
 async def providers(user: CurrentUser) -> dict:
-    return {"default_provider": settings.ta_default_provider, "providers": public_provider_list()}
+    return {"default_provider": settings.llm_default_provider, "providers": public_provider_list()}
+
+
+@router.get("/model-registry")
+async def model_registry(user: CurrentUser) -> dict:
+    """Model registry UI data: providers with default models."""
+    providers = public_provider_list()
+    for p in providers:
+        models = []
+        if p.get("default_deep"):
+            models.append(p["default_deep"])
+        if p.get("default_quick") and p.get("default_quick") not in models:
+            models.append(p["default_quick"])
+        p["models"] = models
+    return {"default_provider": settings.llm_default_provider, "providers": providers}
+
+
+@router.get("/models/registry")
+async def models_registry_alias(user: CurrentUser) -> dict:
+    return await model_registry(user)
 
 
 @router.get("/credentials")
@@ -119,7 +138,7 @@ async def _resolve_analyze(body: TradingAnalyzeRequest, user, session) -> tuple[
         ) from exc
 
     sel = LLMSelection(
-        provider=body.provider or settings.ta_default_provider,
+        provider=body.provider or settings.llm_default_provider,
         deep_model=body.deep_model,
         quick_model=body.quick_model,
         api_key=body.api_key,

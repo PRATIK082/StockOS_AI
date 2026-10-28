@@ -13,6 +13,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +22,15 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post<{ access_token: string }>("/auth/login", { identifier, password });
+      const body: { identifier: string; password: string; totp_code?: string } = {
+        identifier,
+        password,
+      };
+      // Only send totp_code when the user actually typed one — accounts without
+      // 2FA must not receive an empty second factor.
+      const code = totpCode.replace(/\D/g, "");
+      if (code) body.totp_code = code;
+      const res = await api.post<{ access_token: string }>("/auth/login", body);
       setAuthToken(res.access_token);
       router.push("/");
     } catch (err) {
@@ -56,7 +65,17 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Input
+              inputMode="numeric"
+              maxLength={8}
+              autoComplete="one-time-code"
+              placeholder="2FA code (if enabled)"
+              value={totpCode}
+              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+            />
+            {error && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
             </Button>

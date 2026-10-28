@@ -30,6 +30,4 @@ opencode.jsonc
 Thumbs.db
 .idea/
 .vscode/
-
-/shots/
-demo.mjs
+*.duckdb
