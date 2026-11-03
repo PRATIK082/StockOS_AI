@@ -45,11 +45,23 @@
   login → 2FA → approval queue approve→execute on the paper broker.
 - Closes Phase 4 to 100% and gives a regression net for S2–S5.
 
-### S2 — Phase 9 ops foundation (F-9) — DONE (backend commit 06c77a2; frontend pages + nav done, commit pending)
+### S2 — Phase 9 ops foundation (F-9) — DONE (backend 06c77a2; frontend+nav af9d511)
 1. Latency/traffic middleware + health metrics collector + `frontend/app/operations/page.tsx` (tables/tiles, no new chart dep).
 2. Market calendar service (holidays/timings) + `frontend/app/calendar/page.tsx`; broker TOTP/auth flows + diagnostics card on broker-management page.
 3. PnL tracker `frontend/app/pnl/page.tsx` (inline SVG equity curve, no new chart dep).
 4. Telegram bot service + settings-page config card (`python-telegram-bot` added).
+
+### S3 — Phase 5 remainder (P5-b → P5-a → P5-c) — DONE (74a9b94, d9cfaae, 58e113a)
+- P5-b agent-tool approval registry + autopilot approval routing; P5-a Agno+LiteLLM runtime
+  (env-flagged, legacy default); P5-c voice STT / attachments / web-search / skills + agent-extras page.
+
+### S3.5 — Live-quote streaming (unplanned addition, DONE — commit pending)
+- `services/streaming/hub.py` poll hub + `routers/streaming.py` (REST status/latest/market,
+  WS /quotes + /market, accept-then-close 4401); `frontend/app/streaming/page.tsx` + nav;
+  `tests/test_streaming.py` (8) + `e2e/streaming.spec.ts` (4, E2E suite now 8/8 green).
+- Also fixed systemic test rot: instance-level `monkeypatch.setattr(market_data_singleton, …)`
+  leaves a permanent `__dict__` shadow after teardown — converted all such patches to
+  class-level `MarketDataService` patches in 10 test files.
 
 ### S3 — Phase 5 remainder (P5-b → P5-a → P5-c) — effort L
 - P5-b first (small, high safety value), then flagged Agno/LiteLLM migration, then P5-c extras.

@@ -240,8 +240,9 @@ def test_option_premium_history_builds_series(client: TestClient, monkeypatch) -
     chart 404'd with "No underlying history" for every symbol.
     """
     from app.api.routers import analysis as analysis_router
+    from app.services.data.service import MarketDataService
 
-    async def fake_chain(symbol: str, expiry: str | None = None, provider: str | None = None) -> dict:
+    async def fake_chain(self, symbol: str, expiry: str | None = None, provider: str | None = None) -> dict:
         return {
             "symbol": "NSE:TCS",
             "expiry": "2026-08-25",
@@ -256,7 +257,7 @@ def test_option_premium_history_builds_series(client: TestClient, monkeypatch) -
             "puts": [],
         }
 
-    async def fake_history(symbol: str, interval: str = "1d", period: str = "1y", chain: list[str] | None = None) -> dict:
+    async def fake_history(self, symbol: str, interval: str = "1d", period: str = "1y", chain: list[str] | None = None) -> dict:
         return {
             "symbol": symbol,
             "candles": [
@@ -266,8 +267,10 @@ def test_option_premium_history_builds_series(client: TestClient, monkeypatch) -
             ],
         }
 
-    monkeypatch.setattr(analysis_router.market_data, "get_option_chain", fake_chain)
-    monkeypatch.setattr(analysis_router.market_data, "get_history_auto", fake_history)
+    # Class-level patch (never the market_data singleton instance — an
+    # instance patch leaves a permanent __dict__ shadow after teardown).
+    monkeypatch.setattr(MarketDataService, "get_option_chain", fake_chain)
+    monkeypatch.setattr(MarketDataService, "get_history_auto", fake_history)
 
     r = client.get(
         "/api/analysis/options/premium/NSE:TCS?strike=90&option_type=CE&expiry=2026-08-25&interval=1d&period=1mo"

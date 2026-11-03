@@ -209,12 +209,13 @@ def test_build_panel_handles_mixed_tz_offsets_within_one_symbol() -> None:
 
 
 def test_factors_endpoints(client: TestClient, auth: dict, monkeypatch) -> None:
-    from app.api.routers import quant
+    from app.services.data.service import MarketDataService
 
-    async def _fake_auto(symbol, *, interval="1d", period="1y", chain=None):
+    async def _fake_auto(self, symbol, *, interval="1d", period="1y", chain=None):
         return _histories().get(symbol, {"symbol": symbol, "interval": "1d", "period": "2y", "candles": []})
 
-    monkeypatch.setattr(quant.market_data, "get_history_auto", _fake_auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _fake_auto)
 
     reg = client.get("/api/quant/factors", headers=auth)
     assert reg.status_code == 200

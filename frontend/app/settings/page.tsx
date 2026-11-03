@@ -768,6 +768,11 @@ export default function SettingsPage() {
               Save
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Send test posts to /telegram/test (admin only) and exercises the real alert path:
+            it emits a <span className="font-mono">[test]</span> alert; live order fills emit{" "}
+            <span className="font-mono">[order_executed]</span>.
+          </p>
         </CardContent>
       </Card>
 

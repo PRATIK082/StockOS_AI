@@ -176,12 +176,13 @@ def test_sandbox_ast_validation() -> None:
 
 
 def test_backtest_endpoint(client: TestClient, auth: dict, monkeypatch) -> None:
-    from app.api.routers import analysis
+    from app.services.data.service import MarketDataService
 
-    async def _fake_auto(symbol, *, interval="1d", period="1y", chain=None):
+    async def _fake_auto(self, symbol, *, interval="1d", period="1y", chain=None):
         return _synthetic_history()
 
-    monkeypatch.setattr(analysis.market_data, "get_history_auto", _fake_auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _fake_auto)
     r = client.post(
         "/api/analysis/backtest",
         headers=auth,
@@ -209,12 +210,13 @@ def test_backtest_strategies_endpoint(client: TestClient, auth: dict) -> None:
 
 
 def test_backtest_endpoint_unknown_strategy(client: TestClient, auth: dict, monkeypatch) -> None:
-    from app.api.routers import analysis
+    from app.services.data.service import MarketDataService
 
-    async def _fake_auto(symbol, *, interval="1d", period="1y", chain=None):
+    async def _fake_auto(self, symbol, *, interval="1d", period="1y", chain=None):
         return _synthetic_history()
 
-    monkeypatch.setattr(analysis.market_data, "get_history_auto", _fake_auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _fake_auto)
     r = client.post(
         "/api/analysis/backtest",
         headers=auth,
@@ -246,12 +248,13 @@ def test_engine_accepts_integral_float_window() -> None:
 
 
 def test_backtest_endpoint_zero_window_is_422_with_message(client: TestClient, auth: dict, monkeypatch) -> None:
-    from app.api.routers import analysis
+    from app.services.data.service import MarketDataService
 
-    async def _fake_auto(symbol, *, interval="1d", period="1y", chain=None):
+    async def _fake_auto(self, symbol, *, interval="1d", period="1y", chain=None):
         return _synthetic_history()
 
-    monkeypatch.setattr(analysis.market_data, "get_history_auto", _fake_auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _fake_auto)
     r = client.post(
         "/api/analysis/backtest",
         headers=auth,

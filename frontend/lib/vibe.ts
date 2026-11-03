@@ -56,10 +56,16 @@ export function applyVibeEvent(run: VibeRunState, ev: VibeEvent): VibeRunState {
   return run;
 }
 
+export interface VibeChatOptions {
+  attachment_ids?: string[];
+  skills?: string[];
+  websearch?: boolean;
+}
+
 export interface VibeRunController {
   run: VibeRunState;
   streaming: boolean;
-  start: (message: string) => Promise<VibeRunState>;
+  start: (message: string, opts?: VibeChatOptions) => Promise<VibeRunState>;
   cancel: () => void;
 }
 
@@ -72,7 +78,7 @@ export function useVibeRun(): VibeRunController {
     return () => abortRef.current?.abort();
   }, []);
 
-  const start = useCallback(async (message: string) => {
+  const start = useCallback(async (message: string, opts?: VibeChatOptions) => {
     abortRef.current?.abort();
     setRun(emptyVibeRun());
     setStreaming(true);
@@ -86,7 +92,12 @@ export function useVibeRun(): VibeRunController {
           "Content-Type": "application/json",
           ...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {}),
         },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          attachment_ids: opts?.attachment_ids ?? [],
+          skills: opts?.skills ?? null,
+          websearch: opts?.websearch ?? false,
+        }),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Vibe chat failed (${res.status})`);

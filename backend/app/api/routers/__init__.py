@@ -28,6 +28,7 @@ from app.api.routers import (
     research,
     scheduled,
     settings,
+    streaming,
     swarm,
     telegram,
     terminal,
@@ -67,6 +68,7 @@ api_router.include_router(telegram.router)
 api_router.include_router(quantlib.router)
 api_router.include_router(predictions.router)
 api_router.include_router(settings.router)
+api_router.include_router(streaming.router)
 api_router.include_router(orders.router)
 api_router.include_router(terminal.router)
 api_router.include_router(autopilot.router)

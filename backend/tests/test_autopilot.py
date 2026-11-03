@@ -105,16 +105,16 @@ def _patch_signal_long(monkeypatch):
 
 def _patch_market(monkeypatch):
     """Patch the market facade + scanner + options signals for deterministic missions."""
-    from app.services.data.service import market_data
+    from app.services.data.service import MarketDataService
     from app.services.scanners.engine import MarketScanner, ScanResult
 
     async def fake_history(self, symbol, *args, **kwargs):
         return _rising_history()
 
-    async def fake_quote(symbol, *args, **kwargs):
+    async def fake_quote(self, symbol, *args, **kwargs):
         return {"price": 1500.0, "last_price": 1500.0, "bid": 1499.0, "ask": 1501.0}
 
-    async def fake_chain(symbol, *args, **kwargs):
+    async def fake_chain(self, symbol, *args, **kwargs):
         return {
             "symbol": symbol,
             "spot_price": 1500.0,
@@ -137,9 +137,13 @@ def _patch_market(monkeypatch):
             )
         ]
 
-    monkeypatch.setattr(market_data, "get_history_auto", fake_history)
-    monkeypatch.setattr(market_data, "get_quote", fake_quote)
-    monkeypatch.setattr(market_data, "get_option_chain", fake_chain)
+    # NOTE: patch the CLASS, never the market_data singleton instance — an
+    # instance-level monkeypatch leaves a permanent instance __dict__ shadow
+    # after teardown (getattr finds the class attr, so teardown restores it
+    # onto the instance), silently bypassing later class-level patches.
+    monkeypatch.setattr(MarketDataService, "get_history_auto", fake_history)
+    monkeypatch.setattr(MarketDataService, "get_quote", fake_quote)
+    monkeypatch.setattr(MarketDataService, "get_option_chain", fake_chain)
     monkeypatch.setattr(MarketScanner, "scan", fake_scan)
 
     from app.services.options.signals import OptionsSignalsService
@@ -248,20 +252,21 @@ def test_sentinel_take_profit_stop_loss_hold(monkeypatch, price, tp, sl, expecte
     from app.brokers.paper import PaperBroker
     from app.services.autopilot.agents import sentinel_agent
     from app.services.autopilot.config import AutopilotConfig
-    from app.services.data.service import market_data
+    from app.services.data.service import MarketDataService
 
     async def fake_positions(self):
         return [_position("NSE:AAA", 10, 100)]
 
-    async def fake_quote(symbol, *a, **k):
+    async def fake_quote(self, symbol, *a, **k):
         return {"price": price, "last_price": price}
 
     async def fake_history(self, symbol, *a, **k):
         return _rising_history()
 
     monkeypatch.setattr(PaperBroker, "positions", fake_positions)
-    monkeypatch.setattr(market_data, "get_quote", fake_quote)
-    monkeypatch.setattr(market_data, "get_history_auto", fake_history)
+    # Class-level (see _patch_market note — never patch the singleton instance).
+    monkeypatch.setattr(MarketDataService, "get_quote", fake_quote)
+    monkeypatch.setattr(MarketDataService, "get_history_auto", fake_history)
 
     config = AutopilotConfig(take_profit_pct=tp, stop_loss_pct=sl, trail_enabled=True, trail_drop_pct=1.0)
     import asyncio
@@ -287,26 +292,26 @@ def test_sentinel_trail_stop(monkeypatch):
     from app.brokers.paper import PaperBroker
     from app.services.autopilot.agents import sentinel_agent
     from app.services.autopilot.config import AutopilotConfig
-    from app.services.data.service import market_data
+    from app.services.data.service import MarketDataService
 
     async def fake_positions(self):
         return [_position("NSE:BBB", 10, 100)]
 
     monkeypatch.setattr(PaperBroker, "positions", fake_positions)
-    monkeypatch.setattr(market_data, "get_history_auto", lambda self, symbol, *a, **k: _rising_history())
+    monkeypatch.setattr(MarketDataService, "get_history_auto", lambda self, symbol, *a, **k: _rising_history())
 
-    async def fake_quote_first(symbol, *a, **k):
+    async def fake_quote_first(self, symbol, *a, **k):
         return {"price": 109.0, "last_price": 109.0}
 
-    async def fake_quote_second(symbol, *a, **k):
+    async def fake_quote_second(self, symbol, *a, **k):
         return {"price": 105.5, "last_price": 105.5}
 
-    monkeypatch.setattr(market_data, "get_quote", fake_quote_first)
+    monkeypatch.setattr(MarketDataService, "get_quote", fake_quote_first)
     config = AutopilotConfig(take_profit_pct=20.0, stop_loss_pct=-10.0, trail_enabled=True, trail_drop_pct=1.0)
     first = __import__("asyncio").run(sentinel_agent("u-trail", config))
     assert first["proposals"] == []  # +9% under TP20, peak stored
 
-    monkeypatch.setattr(market_data, "get_quote", fake_quote_second)
+    monkeypatch.setattr(MarketDataService, "get_quote", fake_quote_second)
     second = __import__("asyncio").run(sentinel_agent("u-trail", config))
     assert second["monitored"][0]["action"] == "SELL"
     assert second["proposals"][0]["action"] == "trail_stop"
@@ -363,7 +368,7 @@ def test_optionstrategy_builds_ce_play(monkeypatch):
             "recommendation": "Momentum CALL buys favoured.",
         }
 
-    async def fake_chain(symbol, *a, **k):
+    async def fake_chain(self, symbol, *a, **k):
         return {
             "symbol": symbol,
             "spot_price": 2100.0,
@@ -374,9 +379,9 @@ def test_optionstrategy_builds_ce_play(monkeypatch):
         }
 
     monkeypatch.setattr(OptionsSignalsService, "signals", fake_signals)
-    from app.services.data.service import market_data
+    from app.services.data.service import MarketDataService
 
-    monkeypatch.setattr(market_data, "get_option_chain", fake_chain)
+    monkeypatch.setattr(MarketDataService, "get_option_chain", fake_chain)
 
     config = AutopilotConfig(watchlist=["NSE:TCS"], option_max_plays=2, option_lots=1)
     out = __import__("asyncio").run(optionstrategy_agent(config, []))

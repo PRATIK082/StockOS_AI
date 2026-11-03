@@ -113,12 +113,14 @@ def _fake_histories() -> dict:
 
 @pytest.mark.asyncio
 async def test_runner_technical_summary(monkeypatch) -> None:
+    from app.services.data.service import MarketDataService
     from app.services.scheduler import runner
 
-    async def _auto(symbol, *, interval="1d", period="2y", chain=None):
+    async def _auto(self, symbol, *, interval="1d", period="2y", chain=None):
         return _fake_histories()[symbol]
 
-    monkeypatch.setattr(runner.market_data, "get_history_auto", _auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _auto)
     result = await runner.run_playbook({"type": "technical_summary", "symbols": ["SYM0", "SYM1"]})
     assert "error" not in result
     assert result["verdict"]["rating"] in {"BUY", "SELL", "HOLD"}
@@ -127,12 +129,14 @@ async def test_runner_technical_summary(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_runner_swarm(monkeypatch) -> None:
+    from app.services.data.service import MarketDataService
     from app.services.scheduler import runner
 
-    async def _auto(symbol, *, interval="1d", period="2y", chain=None):
+    async def _auto(self, symbol, *, interval="1d", period="2y", chain=None):
         return _fake_histories()[symbol]
 
-    monkeypatch.setattr(runner.market_data, "get_history_auto", _auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _auto)
     result = await runner.run_playbook({"type": "swarm", "preset": "quant-sweep", "symbols": ["SYM0", "SYM1", "SYM2", "SYM3"]})
     assert "error" not in result
     for role in ["screen", "verify", "analyze", "decide"]:
@@ -148,12 +152,13 @@ async def test_runner_unknown_playbook() -> None:
 
 
 def test_schedule_endpoints(client: TestClient, auth: dict, monkeypatch) -> None:
-    from app.services.scheduler import runner
+    from app.services.data.service import MarketDataService
 
-    async def _auto(symbol, *, interval="1d", period="2y", chain=None):
+    async def _auto(self, symbol, *, interval="1d", period="2y", chain=None):
         return _fake_histories()[symbol]
 
-    monkeypatch.setattr(runner.market_data, "get_history_auto", _auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _auto)
     r = client.get("/api/scheduled/presets", headers=auth)
     assert r.status_code == 200 and len(r.json()["presets"]) == 30
     r = client.post(

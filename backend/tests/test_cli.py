@@ -80,12 +80,13 @@ async def test_backtest_command_uses_real_engine(monkeypatch) -> None:
     from app.cli.commands import _backtest
     from app.services.backtesting.engine_v2 import run_backtest_with_benchmark
     from app.services.data import ohlcv
-    from app.services.data import service as data_service
+    from app.services.data.service import MarketDataService
 
-    async def _fake_auto(symbol, *, interval="1d", period="1y", chain=None):
+    async def _fake_auto(self, symbol, *, interval="1d", period="1y", chain=None):
         return _history(symbol)
 
-    monkeypatch.setattr(data_service.market_data, "get_history_auto", _fake_auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _fake_auto)
     monkeypatch.setattr(ohlcv, "sanitize_history", lambda h: h)
 
     result = await _backtest("NSE:RELIANCE", "moving_average_crossover", "1d", "2y", None, False, None, 100_000.0, False)

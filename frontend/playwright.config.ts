@@ -49,6 +49,13 @@ export default defineConfig({
         storageState: "./e2e/.auth/user.json",
       },
     },
+    {
+      name: "streaming",
+      testMatch: /streaming\.spec\.ts/,
+      use: {
+        storageState: "./e2e/.auth/user.json",
+      },
+    },
   ],
   webServer: [
     {

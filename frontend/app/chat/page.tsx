@@ -2,9 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import AppShell from "@/components/layout/shell";
 import VibeRunView from "@/components/stock/VibeRunView";
+import { getAuthToken } from "@/lib/api";
 import { emptyVibeRun, useVibeRun, type VibeRunState } from "@/lib/vibe";
 import { Bot, Loader2, Send, Sparkles, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +27,10 @@ interface Msg {
 export default function ChatPage() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
+  const [attachmentsInput, setAttachmentsInput] = useState("");
+  const [skillsInput, setSkillsInput] = useState("");
+  const [websearch, setWebsearch] = useState(false);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [runs, setRuns] = useState<Record<number, VibeRunState>>({});
   const [activeKey, setActiveKey] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -34,6 +40,8 @@ export default function ChatPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, runs, run.plan, run.answer]);
+
+  const parseCsv = (s: string) => s.split(",").map((t) => t.trim()).filter(Boolean);
 
   const send = async (text: string) => {
     const trimmed = text.trim();
@@ -46,7 +54,19 @@ export default function ChatPage() {
       { role: "user", content: trimmed, runKey: 0 },
       { role: "assistant", content: "", runKey: key },
     ]);
-    const final = await start(trimmed);
+    const allAttachmentIds = parseCsv(attachmentsInput);
+    const attachment_ids = allAttachmentIds.slice(0, 5);
+    const skills = parseCsv(skillsInput);
+    const nextWarnings: string[] = [];
+    if (allAttachmentIds.length > 5) nextWarnings.push("Only the first 5 attachment IDs were sent (max 5).");
+    if (attachment_ids.length > 0 && !getAuthToken())
+      nextWarnings.push("Sign in to use attachments; attachment_ids may be ignored for anonymous users.");
+    setWarnings(nextWarnings);
+    const final = await start(trimmed, {
+      attachment_ids,
+      skills: skills.length ? skills : undefined,
+      websearch,
+    });
     setRuns((prev) => ({ ...prev, [key]: final }));
     setActiveKey((k) => (k === key ? null : k));
   };
@@ -118,7 +138,40 @@ export default function ChatPage() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="border-t p-3">
+          <div className="space-y-2 border-t p-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <Input
+                  value={attachmentsInput}
+                  onChange={(e) => setAttachmentsInput(e.target.value)}
+                  placeholder="Attachment IDs (comma-separated, max 5)"
+                  aria-label="Attachment IDs"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">IDs of previously uploaded files.</p>
+              </div>
+              <div>
+                <Input
+                  value={skillsInput}
+                  onChange={(e) => setSkillsInput(e.target.value)}
+                  placeholder="Skills (comma-separated)"
+                  aria-label="Skills"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">Unknown skill names are ignored with a warning.</p>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={websearch} onChange={(e) => setWebsearch(e.target.checked)} />
+              Web search
+            </label>
+            {warnings.length > 0 && (
+              <ul className="space-y-1">
+                {warnings.map((w) => (
+                  <li key={w} className="text-xs text-yellow-600 dark:text-yellow-400">
+                    {w}
+                  </li>
+                ))}
+              </ul>
+            )}
             <form
               onSubmit={(e) => {
                 e.preventDefault();

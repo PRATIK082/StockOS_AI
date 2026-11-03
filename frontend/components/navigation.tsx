@@ -28,6 +28,8 @@ import {
   Database,
   Calendar,
   Wallet,
+  Radio,
+  Puzzle,
 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 
@@ -45,6 +47,7 @@ const groups: NavGroup[] = [
       { href: "/screener", label: "Screener", icon: Search },
       { href: "/intraday", label: "Intraday", icon: Activity },
       { href: "/calendar", label: "Calendar", icon: Calendar },
+      { href: "/streaming", label: "Live Quotes", icon: Radio },
     ],
   },
   {
@@ -77,6 +80,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/chat", label: "AI Chat", icon: MessageSquare },
       { href: "/ai-tools", label: "AI Tools", icon: Wrench },
+      { href: "/agent-extras", label: "Agent Extras", icon: Puzzle },
       { href: "/watchlist", label: "Watchlist", icon: Eye },
     ],
   },
