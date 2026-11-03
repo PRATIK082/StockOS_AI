@@ -26,6 +26,8 @@ import {
   CheckSquare,
   Wrench,
   Database,
+  Calendar,
+  Wallet,
 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 
@@ -42,6 +44,7 @@ const groups: NavGroup[] = [
       { href: "/sectors", label: "Sectors", icon: Layers },
       { href: "/screener", label: "Screener", icon: Search },
       { href: "/intraday", label: "Intraday", icon: Activity },
+      { href: "/calendar", label: "Calendar", icon: Calendar },
     ],
   },
   {
@@ -64,6 +67,7 @@ const groups: NavGroup[] = [
       { href: "/trading/autopilot", label: "AI Agent", icon: Sparkles },
       { href: "/action-center", label: "Action Center", icon: CheckSquare },
       { href: "/options", label: "Options", icon: DollarSign },
+      { href: "/pnl", label: "P&L", icon: Wallet },
       { href: "/portfolio", label: "Portfolio", icon: Briefcase },
     ],
   },
@@ -81,6 +85,7 @@ const groups: NavGroup[] = [
     icon: Settings,
     items: [
       { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/operations", label: "Operations", icon: Activity },
       { href: "/broker-management", label: "Broker Mgmt", icon: Settings },
     ],
   },

@@ -18,5 +18,5 @@ Branch: `StockAlgo_1`
 - [x] Backend tests for analyzer + smart/basket/split + approval flow.
 
 ## Not completed (remaining)
-- [ ] Frontend approval UX and analyzer controls.
+- [x] Frontend approval UX and analyzer controls. (done: `frontend/app/action-center/page.tsx` + analyzer-mode card.)
 - [ ] End-to-end tests for approval-gated live routing.

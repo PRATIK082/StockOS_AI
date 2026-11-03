@@ -15,5 +15,5 @@ Branch: `StockAlgo_1`
 - [x] Incremental updates and gap detection (backend).
 - [x] Import/export flows (backend).
 - [x] FNO discovery and contract handling (backend).
-- [ ] Frontend Historify pages and controls.
+- [x] Frontend Historify pages and controls. (done: `frontend/app/historify/page.tsx`.)
 - [x] Auth-gated integration tests beyond ingest/query/status (backend).

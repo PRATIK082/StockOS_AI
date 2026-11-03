@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Check, Copy, KeyRound, Loader2, LogOut, Save, ShieldCheck, ShieldOff } from "lucide-react";
+import { Check, Copy, KeyRound, Loader2, LogOut, RefreshCw, Save, Send, ShieldCheck, ShieldOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect, useState } from "react";
-import { api, getAuthToken, setAuthToken } from "@/lib/api";
+import { API_BASE, ApiError, api, getAuthToken, setAuthToken } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface SettingsData {
@@ -44,6 +44,16 @@ interface LogoutResponse {
   revoked: boolean;
 }
 
+interface TelegramStatus {
+  configured: boolean;
+  enabled: boolean;
+  running: boolean;
+  chat_ids?: number[];
+  allowed_chats?: number[];
+  owner_linked?: boolean;
+  owner_user_id?: string | null;
+}
+
 type Feedback = { type: "success" | "error"; msg: string } | null;
 
 const onlyDigits = (value: string) => value.replace(/\D/g, "");
@@ -58,6 +68,42 @@ async function postTotp<T>(path: string, body: { code: string }): Promise<T> {
     if (error?.status === 401 && token) setAuthToken(token);
     throw error;
   }
+}
+
+// The shared `api` helper has no PUT method, so the Telegram config save uses a
+// raw fetch with the same auth header and ApiError conventions.
+async function putTelegramConfig(body: Record<string, unknown>): Promise<TelegramStatus> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = getAuthToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/telegram/config`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(`Cannot reach backend at ${API_BASE} - is it running?`, 0);
+  }
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const data = await res.json();
+      detail = data.detail || JSON.stringify(data);
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(detail, res.status);
+  }
+  return res.json() as Promise<TelegramStatus>;
+}
+
+function telegramChats(status: TelegramStatus | undefined): number[] {
+  if (!status) return [];
+  if (Array.isArray(status.chat_ids)) return status.chat_ids;
+  if (Array.isArray(status.allowed_chats)) return status.allowed_chats;
+  return [];
 }
 
 export default function SettingsPage() {
@@ -82,6 +128,13 @@ export default function SettingsPage() {
   const [totpCode, setTotpCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<Feedback>(null);
+
+  // --- Telegram notifications state (token is write-only: blank keeps it) ---
+  const [tgToken, setTgToken] = useState("");
+  const [tgChatIds, setTgChatIds] = useState("");
+  const [tgEnabled, setTgEnabled] = useState(false);
+  const [tgFeedback, setTgFeedback] = useState<Feedback>(null);
+  const [tgInitialized, setTgInitialized] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -179,6 +232,91 @@ export default function SettingsPage() {
       const msg = error?.message || error?.detail || "Could not revoke the session on the server";
       setSessionStatus({ type: "error", msg: `${msg} — signing out locally.` });
       finishLogout();
+    },
+  });
+
+  const telegramQuery = useQuery<TelegramStatus>({
+    queryKey: ["telegram", "status"],
+    queryFn: () => api.get("/telegram/status"),
+    retry: false,
+  });
+
+  useEffect(() => {
+    const tg = telegramQuery.data;
+    if (tg && !tgInitialized) {
+      setTgChatIds(telegramChats(tg).join(", "));
+      setTgEnabled(Boolean(tg.enabled));
+      setTgInitialized(true);
+    }
+  }, [telegramQuery.data, tgInitialized]);
+
+  const tgSaveMutation = useMutation({
+    mutationFn: async () => {
+      const parts = tgChatIds
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      const ids: number[] = [];
+      for (const part of parts) {
+        if (!/^-?\d+$/.test(part)) {
+          throw new ApiError(`Invalid chat ID "${part}" — use comma-separated numbers.`, 400);
+        }
+        ids.push(Number(part));
+      }
+      const body: Record<string, unknown> = { chat_ids: ids, enabled: tgEnabled };
+      if (tgToken.trim()) body.token = tgToken.trim();
+      return putTelegramConfig(body);
+    },
+    onSuccess: (res) => {
+      setTgToken("");
+      setTgChatIds(telegramChats(res).join(", "));
+      setTgEnabled(Boolean(res.enabled));
+      setTgFeedback({ type: "success", msg: "Telegram config saved." });
+      queryClient.invalidateQueries({ queryKey: ["telegram", "status"] });
+    },
+    onError: (error: any) => {
+      if (error?.status === 403) {
+        setTgFeedback({ type: "error", msg: "Telegram settings are admin only." });
+      } else {
+        setTgFeedback({ type: "error", msg: error?.message || "Failed to save Telegram config" });
+      }
+    },
+  });
+
+  const tgTestMutation = useMutation({
+    mutationFn: () => api.post<{ ok: boolean }>("/telegram/test"),
+    onSuccess: () => {
+      setTgFeedback({ type: "success", msg: "Test message sent." });
+    },
+    onError: (error: any) => {
+      if (error?.status === 403) {
+        setTgFeedback({ type: "error", msg: "Telegram settings are admin only." });
+      } else if (error?.status === 409) {
+        setTgFeedback({
+          type: "error",
+          msg: "Telegram bot is not running — save config and restart first.",
+        });
+      } else {
+        setTgFeedback({ type: "error", msg: error?.message || "Failed to send test message" });
+      }
+    },
+  });
+
+  const tgRestartMutation = useMutation({
+    mutationFn: () => api.post<TelegramStatus>("/telegram/restart"),
+    onSuccess: (res) => {
+      setTgToken("");
+      setTgChatIds(telegramChats(res).join(", "));
+      setTgEnabled(Boolean(res.enabled));
+      setTgFeedback({ type: "success", msg: "Telegram bot restarted." });
+      queryClient.invalidateQueries({ queryKey: ["telegram", "status"] });
+    },
+    onError: (error: any) => {
+      if (error?.status === 403) {
+        setTgFeedback({ type: "error", msg: "Telegram settings are admin only." });
+      } else {
+        setTgFeedback({ type: "error", msg: error?.message || "Failed to restart Telegram bot" });
+      }
     },
   });
 
@@ -502,6 +640,134 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Telegram notifications</CardTitle>
+          <CardDescription>
+            Send trade alerts to Telegram chats. The bot token is write-only — leave the token
+            field blank to keep the existing token.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {tgFeedback && (
+            <div
+              className={cn(
+                "rounded-md px-4 py-3 text-sm",
+                tgFeedback.type === "success"
+                  ? "bg-positive/10 text-positive"
+                  : "bg-destructive/10 text-destructive",
+              )}
+            >
+              {tgFeedback.msg}
+            </div>
+          )}
+
+          {telegramQuery.isLoading ? (
+            <Skeleton className="h-6 w-56" />
+          ) : telegramQuery.isError ? (
+            (telegramQuery.error as any)?.status === 403 ? (
+              <p className="text-sm text-muted-foreground">
+                Telegram settings are admin only.
+              </p>
+            ) : (
+              <p className="text-sm text-destructive">
+                Could not load Telegram status — check the backend connection and try again.
+              </p>
+            )
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={telegramQuery.data?.configured ? "positive" : "muted"}>
+                {telegramQuery.data?.configured ? "Configured" : "Not configured"}
+              </Badge>
+              <Badge variant={telegramQuery.data?.enabled ? "positive" : "secondary"}>
+                {telegramQuery.data?.enabled ? "Enabled" : "Disabled"}
+              </Badge>
+              <Badge variant={telegramQuery.data?.running ? "positive" : "negative"}>
+                {telegramQuery.data?.running ? "Running" : "Stopped"}
+              </Badge>
+              <Badge variant="outline">
+                {telegramChats(telegramQuery.data).length} chat
+                {telegramChats(telegramQuery.data).length === 1 ? "" : "s"}
+              </Badge>
+            </div>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="tg-token">Bot token</Label>
+              <Input
+                id="tg-token"
+                type="password"
+                value={tgToken}
+                onChange={(e) => setTgToken(e.target.value)}
+                placeholder="Leave blank to keep existing token"
+                autoComplete="new-password"
+                disabled={tgSaveMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tg-chat-ids">Chat IDs (comma-separated)</Label>
+              <Input
+                id="tg-chat-ids"
+                value={tgChatIds}
+                onChange={(e) => setTgChatIds(e.target.value)}
+                placeholder="e.g. 123456789, 987654321"
+                className="font-mono"
+                disabled={tgSaveMutation.isPending}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              id="tg-enabled"
+              type="checkbox"
+              checked={tgEnabled}
+              onChange={(e) => setTgEnabled(e.target.checked)}
+              disabled={tgSaveMutation.isPending}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="tg-enabled">Enabled</Label>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => tgTestMutation.mutate()}
+              disabled={tgTestMutation.isPending || tgRestartMutation.isPending}
+            >
+              {tgTestMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Send test
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => tgRestartMutation.mutate()}
+              disabled={tgRestartMutation.isPending || tgTestMutation.isPending}
+            >
+              {tgRestartMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Restart
+            </Button>
+            <Button onClick={() => tgSaveMutation.mutate()} disabled={tgSaveMutation.isPending}>
+              {tgSaveMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Save
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
