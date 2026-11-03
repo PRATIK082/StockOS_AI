@@ -2,6 +2,7 @@
 
 from app.api.routers import (
     action_center,
+    agent_extras,
     analysis,
     analyzer,
     brokers,
@@ -36,6 +37,7 @@ from app.api.routers import (
 
 api_router = APIRouter()
 api_router.include_router(action_center.router)
+api_router.include_router(agent_extras.router)
 api_router.include_router(analyzer.router)
 api_router.include_router(analyzer.compat_router)
 api_router.include_router(auth.router)

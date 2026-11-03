@@ -74,6 +74,7 @@ class Orchestrator:
         symbol: str | None = None,
         intent: str | None = None,
         provider: str | None = None,
+        data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not task and not symbol:
             raise ValueError("A task description or symbol is required.")
@@ -81,7 +82,7 @@ class Orchestrator:
         plan = _plan(intent, task)
         logger.info("Planner selected agents: %s", plan)
 
-        ctx = AgentContext(task=task, symbol=symbol or "", provider=provider)
+        ctx = AgentContext(task=task, symbol=symbol or "", provider=provider, data=data or {})
 
         async def _run(name: str):
             try:

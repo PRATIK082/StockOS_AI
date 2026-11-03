@@ -8,7 +8,10 @@ from typing import AsyncIterator
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
+from app.api.deps import OptionalUser
 from app.api.schemas import ChatRequest, ResearchRequest
+from app.services.agents import attachments as attachment_store
+from app.services.agents import skills as skill_packs
 from app.services.agents.orchestrator import orchestrator
 from app.services.llm.gateway import gateway
 from app.services.vibe.engine import vibe_chat_engine
@@ -27,11 +30,33 @@ async def research(body: ResearchRequest) -> dict:
 
 
 @router.post("/chat")
-async def chat(body: ChatRequest) -> dict:
+async def chat(body: ChatRequest, user: OptionalUser = None) -> dict:
     try:
-        return await orchestrator.run(
-            body.message, intent="chat", provider=body.provider
+        data: dict = {}
+        warnings: list[str] = []
+        if body.attachment_ids:
+            if user is None:
+                warnings.append("Sign in to use attachments; attachment_ids were ignored.")
+            elif not attachment_store.attachments_enabled():
+                warnings.append("Attachments are disabled (STOCKOS_AGENT_ATTACHMENTS=off).")
+            else:
+                found, skipped = attachment_store.load_texts(str(user.id), body.attachment_ids)
+                data["attachments"] = found
+                if skipped:
+                    warnings.append(f"Skipped {len(skipped)} attachment(s): not found or not readable text.")
+        if body.skills:
+            data["skills"] = body.skills
+            _, unknown = skill_packs.resolve(body.skills)
+            if unknown:
+                warnings.append(f"Unknown skill(s) ignored: {', '.join(unknown)}")
+        if body.websearch:
+            data["websearch"] = True
+        out = await orchestrator.run(
+            body.message, intent="chat", provider=body.provider, data=data
         )
+        if warnings:
+            out["warnings"] = warnings
+        return out
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Chat failed: {exc}") from exc
 

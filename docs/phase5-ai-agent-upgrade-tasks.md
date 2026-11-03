@@ -48,8 +48,26 @@ StockOS agents, MCP server, or Action Center approval flow.
 ## Not completed (remaining)
 - [x] P5-a: Agno + LiteLLM agent-runtime migration — DONE (see Completed above).
 - [x] P5-b: Agent-tool specific order approval — DONE (see Completed above).
-- [ ] P5-c: Voice / attachments / web-search / skills in the agent runtime (deferred items,
-      each behind its own config flag).
+- [x] P5-c: Voice / attachments / web-search / skills — DONE. Flags
+      (`STOCKOS_VOICE_STT=off|faster-whisper` default off, optional dep, lazy
+      import; `STOCKOS_AGENT_ATTACHMENTS=on|off` default on, local
+      `backend/data/attachments/<user>/` + `index.json` sidecar, text extract
+      capped, images/PDFs stored-only and reported honestly;
+      `STOCKOS_AGENT_WEBSEARCH=off|duckduckgo` default off, no-key DDG lite
+      via httpx + tolerant regex parser, empty-not-fabricated;
+      `STOCKOS_AGENT_SKILLS` default off, `skills/*.md` prompt packs:
+      risk-discipline, options-desk, earnings-checklist). New
+      `app/services/voice/stt.py`, `agents/attachments.py`,
+      `agents/websearch.py`, `agents/skills.py` + 3 skill files, router
+      `api/routers/agent_extras.py` (`/voice/transcribe`,
+      `/agent/attachments*`, `/agent/websearch`, `/agent/skills`).
+      Wiring: `ChatRequest.attachment_ids/skills/websearch` (all optional),
+      `Orchestrator.run(data=)` → `AgentContext.data`, `ChatAgent` appends
+      attachment/skill/web blocks as system messages + sources
+      (`attachment:`, `skill:`, `web-search`), `OptionalUser` dep keeps
+      `/chat` open for anonymous callers (attachments warn when signed out).
+      Tests: `tests/test_agent_extras_p5c.py` (13 tests, all faked).
+      Full suite: 396 passed.
 
 ## Files touched
 - `backend/app/services/mcp/client.py`
