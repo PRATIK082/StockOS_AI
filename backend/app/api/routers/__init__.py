@@ -5,6 +5,7 @@ from app.api.routers import (
     analysis,
     analyzer,
     brokers,
+    calendar,
     chart_markup,
     historify,
     auth,
@@ -14,9 +15,11 @@ from app.api.routers import (
     market,
     master_contract,
     memory,
+    monitoring,
     orders,
     options,
     options_analytics,
+    pnl,
     portfolio,
     predictions,
     quant,
@@ -25,6 +28,7 @@ from app.api.routers import (
     scheduled,
     settings,
     swarm,
+    telegram,
     terminal,
     trading,
     watchlist,
@@ -36,6 +40,7 @@ api_router.include_router(analyzer.router)
 api_router.include_router(analyzer.compat_router)
 api_router.include_router(auth.router)
 api_router.include_router(brokers.router)
+api_router.include_router(calendar.router)
 api_router.include_router(chart_markup.router)
 api_router.include_router(historify.router)
 api_router.include_router(mcp_client.router)
@@ -47,13 +52,16 @@ api_router.include_router(portfolio.router)
 api_router.include_router(options.router)
 api_router.include_router(options_analytics.analytics_router)
 api_router.include_router(options_analytics.margin_router)
+api_router.include_router(pnl.router)
 api_router.include_router(research.router)
 api_router.include_router(analysis.router)
 api_router.include_router(trading.router)
 api_router.include_router(quant.router)
 api_router.include_router(memory.router)
+api_router.include_router(monitoring.router)
 api_router.include_router(scheduled.router)
 api_router.include_router(swarm.router)
+api_router.include_router(telegram.router)
 api_router.include_router(quantlib.router)
 api_router.include_router(predictions.router)
 api_router.include_router(settings.router)
