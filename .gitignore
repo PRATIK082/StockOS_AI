@@ -31,3 +31,11 @@ Thumbs.db
 .idea/
 .vscode/
 *.duckdb
+
+# Playwright E2E (S1 harness)
+test-results/
+playwright-report/
+e2e/.auth/
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e/.auth/
