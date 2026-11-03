@@ -392,9 +392,58 @@ async def execute_agent(
     fills: list[dict[str, Any]] = []
     rejects: list[dict[str, Any]] = []
     executions: list[dict[str, Any]] = []
+    pending: list[dict[str, Any]] = []
+
+    from app.core.config import get_settings
+
+    approval_required = bool(getattr(get_settings(), "is_approval_required", False))
+    if approval_required:
+        # REQUIRE_APPROVAL: queue each risk-approved proposal for a human
+        # instead of filling (same semantics as POST /api/v1/orders/submit).
+        import json as _json
+
+        from app.db.models import ActionCenterItem
+        from app.db.session import SessionFactory as _SessionFactory
+
+        _items: list[tuple[Any, dict[str, Any]]] = []
+        async with _SessionFactory() as _session:
+            for p in gated_proposals:
+                if not p["allowed"]:
+                    continue
+                _item = ActionCenterItem(
+                    user_id=user_id,
+                    symbol=p["symbol"],
+                    side=p["side"],
+                    quantity=str(p["qty"]),
+                    price=0.0,
+                    status="pending",
+                    order_type="MARKET",
+                    payload=_json.dumps(
+                        {
+                            "source": "autopilot",
+                            "action": p.get("action"),
+                            "reason": str(p.get("reason", ""))[:500],
+                        }
+                    ),
+                )
+                _session.add(_item)
+                _items.append((_item, p))
+            await _session.flush()
+            for _item, p in _items:
+                pending.append(
+                    {
+                        "id": _item.id,
+                        "symbol": p["symbol"],
+                        "side": p["side"],
+                        "qty": p["qty"],
+                        "status": "pending_approval",
+                    }
+                )
+            await _session.commit()
+        logger.info("execute agent queued %d proposals for approval", len(pending))
 
     for p in gated_proposals:
-        if not p["allowed"]:
+        if approval_required or not p["allowed"]:
             continue
         try:
             result = await broker.place_order(
@@ -460,6 +509,7 @@ async def execute_agent(
         "rejects": rejects,
         "executions": executions,
         "option_tracks": tracked,
+        "pending": pending,
     }
 
 

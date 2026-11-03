@@ -21,17 +21,19 @@ StockOS agents, MCP server, or Action Center approval flow.
 - [x] Tests: `test_mcp_client.py`, `test_chart_markup.py`, `test_model_registry.py`.
 - [x] Frontend surfaces for MCP clients, chart markup, and model registry
       (`frontend/app/ai-tools/page.tsx`).
+- [x] P5-b: agent-tool order approval. New choke point `app/services/agents/tools.py`
+      (`list_tools`, `run_tool`, `preview_order` read-only, `place_order` approval-gated:
+      `REQUIRE_APPROVAL` files a pending `ActionCenterItem`, no broker contact; PAPER
+      mirrors `order_submit` incl. risk check). Autopilot `execute_agent` queues approvals
+      the same way and returns a `pending` list (fills stay empty, no direct fill).
+      Tests: `tests/test_agent_tools_approval.py` (6 tests). Full suite: 370 passed.
 
 ## Not completed (remaining)
 - [ ] P5-a: Optional Agno + LiteLLM agent-runtime migration. Both deps are absent (verified),
       so this starts with adding them, then a new runtime adapter (e.g.
       `app/services/agents/runtime_agno.py`) behind the existing agent interface — existing
       agents keep working, nothing is removed. Tests: `tests/test_agent_runtime_agno.py`.
-- [ ] P5-b: Agent-tool specific order approval. The generic Action Center queue exists and is
-      wired, but the agent runtime does not yet route its tool calls through it. Work: intercept
-      order-placing tool calls in the agent runtime and file them via
-      `app/services/action_center.py` (same `REQUIRE_APPROVAL` semantics as the orders service).
-      Tests: agent tool call in semi-auto mode creates an Action Center item, no direct fill.
+- [x] P5-b: Agent-tool specific order approval — DONE (see Completed above).
 - [ ] P5-c: Voice / attachments / web-search / skills in the agent runtime (deferred items,
       each behind its own config flag).
 
