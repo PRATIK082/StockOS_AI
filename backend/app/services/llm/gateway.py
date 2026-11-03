@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.llm.providers import (
     ChatMessage,
+    LiteLLMProvider,
     LMStudioProvider,
     LLMProvider,
     LlamacppProvider,
@@ -22,7 +23,7 @@ from app.services.llm.providers import (
 
 logger = get_logger("llm.gateway")
 
-SUPPORTED_PROVIDERS = {"ollama", "lmstudio", "llamacpp", "openai"}
+SUPPORTED_PROVIDERS = {"ollama", "lmstudio", "llamacpp", "openai", "litellm"}
 
 
 def build_provider(name: str) -> LLMProvider:
@@ -41,6 +42,12 @@ def build_provider(name: str) -> LLMProvider:
     if name == "llamacpp":
         return LlamacppProvider(
             settings.llamacpp_base_url, default_model=settings.llm_default_model
+        )
+    if name == "litellm":
+        return LiteLLMProvider(
+            api_base=settings.ollama_base_url,
+            api_key=settings.openai_api_key,
+            default_model=settings.llm_default_model,
         )
     return OpenAICompatProvider(
         settings.openai_base_url,

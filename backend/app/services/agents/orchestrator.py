@@ -18,6 +18,7 @@ import asyncio
 from typing import Any
 
 from app.core.logging import get_logger
+from app.services.agents import runtime_agno
 from app.services.agents.base import AgentContext, AgentResult
 from app.services.agents.chat import ChatAgent
 from app.services.agents.research import ResearchAgent
@@ -84,7 +85,7 @@ class Orchestrator:
 
         async def _run(name: str):
             try:
-                return await AGENTS[name].run(ctx)
+                return await runtime_agno.run_agent(AGENTS[name], ctx)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("agent %s failed", name)
                 return AgentResult(content=f"Agent '{name}' failed: {exc}", agent=name, confidence=0.1)

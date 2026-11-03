@@ -27,12 +27,26 @@ StockOS agents, MCP server, or Action Center approval flow.
       mirrors `order_submit` incl. risk check). Autopilot `execute_agent` queues approvals
       the same way and returns a `pending` list (fills stay empty, no direct fill).
       Tests: `tests/test_agent_tools_approval.py` (6 tests). Full suite: 370 passed.
+- [x] P5-a: Agno + LiteLLM agent-runtime migration. Deps pinned
+      (`agno>=2.9,<3`, `litellm>=1.106.6,<2`, `mcp>=2.3,<3` — litellm 1.106+
+      imports the `mcp` package, verified by a live failure). New
+      `LiteLLMProvider` (`app/services/llm/providers/litellm_provider.py`,
+      lazy import, clean RuntimeError when absent) registered in the gateway
+      as `litellm` (Ollama base + OpenAI key defaults, zero new settings).
+      New opt-in runtime `app/services/agents/runtime_agno.py`
+      (`STOCKOS_AGENT_RUNTIME=agno`, default legacy): legacy evidence pass
+      first, then one Agno tool-calling pass (P5-b preview/place tools;
+      place without a user returns a not-placed message, never raises), any
+      failure falls back to the legacy result. Orchestrator `_run` routes
+      through `run_agent` (default behavior byte-identical). Verified live:
+      Agno 2.9.0 + LiteLLM instantiate in-process, `acompletion` and Agno
+      tool-calling work against local Ollama (qwen3:14b; ministral-3:14b hit
+      a model-side repeat-limit, environmental).
+      Tests: `tests/test_agent_runtime_agno.py` (13 tests, all faked, no
+      network). Full suite: 383 passed.
 
 ## Not completed (remaining)
-- [ ] P5-a: Optional Agno + LiteLLM agent-runtime migration. Both deps are absent (verified),
-      so this starts with adding them, then a new runtime adapter (e.g.
-      `app/services/agents/runtime_agno.py`) behind the existing agent interface — existing
-      agents keep working, nothing is removed. Tests: `tests/test_agent_runtime_agno.py`.
+- [x] P5-a: Agno + LiteLLM agent-runtime migration — DONE (see Completed above).
 - [x] P5-b: Agent-tool specific order approval — DONE (see Completed above).
 - [ ] P5-c: Voice / attachments / web-search / skills in the agent runtime (deferred items,
       each behind its own config flag).
