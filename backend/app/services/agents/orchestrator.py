@@ -18,6 +18,7 @@ import asyncio
 from typing import Any
 
 from app.core.logging import get_logger
+from app.services.agents import runtime_agno
 from app.services.agents.base import AgentContext, AgentResult
 from app.services.agents.chat import ChatAgent
 from app.services.agents.research import ResearchAgent
@@ -73,6 +74,7 @@ class Orchestrator:
         symbol: str | None = None,
         intent: str | None = None,
         provider: str | None = None,
+        data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if not task and not symbol:
             raise ValueError("A task description or symbol is required.")
@@ -80,11 +82,11 @@ class Orchestrator:
         plan = _plan(intent, task)
         logger.info("Planner selected agents: %s", plan)
 
-        ctx = AgentContext(task=task, symbol=symbol or "", provider=provider)
+        ctx = AgentContext(task=task, symbol=symbol or "", provider=provider, data=data or {})
 
         async def _run(name: str):
             try:
-                return await AGENTS[name].run(ctx)
+                return await runtime_agno.run_agent(AGENTS[name], ctx)
             except Exception as exc:  # noqa: BLE001
                 logger.exception("agent %s failed", name)
                 return AgentResult(content=f"Agent '{name}' failed: {exc}", agent=name, confidence=0.1)

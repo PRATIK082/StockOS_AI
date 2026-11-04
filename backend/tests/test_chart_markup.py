@@ -59,10 +59,13 @@ def _candles(n: int = 80):
 
 
 def test_chart_markup_endpoint(client: TestClient, auth: dict, monkeypatch) -> None:
-    async def _auto(symbol, *, interval="1d", period="3mo", provider=None, chain=None):
+    from app.services.data.service import MarketDataService
+
+    async def _auto(self, symbol, *, interval="1d", period="3mo", provider=None, chain=None):
         return {"candles": _candles(80)}
 
-    monkeypatch.setattr("app.services.data.service.market_data.get_history_auto", _auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _auto)
 
     r = client.get("/api/analysis/chart-markup", headers=auth, params={"symbol": "NSE:TEST", "interval": "1d", "period": "3mo"})
     assert r.status_code == 200, r.text
@@ -75,10 +78,13 @@ def test_chart_markup_endpoint(client: TestClient, auth: dict, monkeypatch) -> N
 
 
 def test_chart_markup_router_alias(client: TestClient, auth: dict, monkeypatch) -> None:
-    async def _auto(symbol, *, interval="1d", period="3mo", provider=None, chain=None):
+    from app.services.data.service import MarketDataService
+
+    async def _auto(self, symbol, *, interval="1d", period="3mo", provider=None, chain=None):
         return {"candles": _candles(60)}
 
-    monkeypatch.setattr("app.services.data.service.market_data.get_history_auto", _auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _auto)
 
     r = client.get("/api/chart-markup", headers=auth, params={"symbol": "NSE:TEST"})
     assert r.status_code == 200, r.text

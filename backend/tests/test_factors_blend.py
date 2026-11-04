@@ -101,12 +101,13 @@ def test_factor_portfolio_backtest() -> None:
 
 
 def test_blend_endpoint(client: TestClient, auth: dict, monkeypatch) -> None:
-    from app.api.routers import quant
+    from app.services.data.service import MarketDataService
 
-    async def _fake_auto(symbol, *, interval="1d", period="1y", chain=None):
+    async def _fake_auto(self, symbol, *, interval="1d", period="1y", chain=None):
         return _histories().get(symbol, {"symbol": symbol, "interval": "1d", "period": "2y", "candles": []})
 
-    monkeypatch.setattr(quant.market_data, "get_history_auto", _fake_auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _fake_auto)
     symbols = list(_histories().keys())
     r = client.post(
         "/api/quant/signals/blend",

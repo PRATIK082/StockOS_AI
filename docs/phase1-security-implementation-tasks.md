@@ -20,11 +20,11 @@ StockOS auth/tests.
 - [x] All 260 backend tests pass.
 
 ## Next (Phase 1 remainder)
-- [ ] CSRF protection for cookie/session routes (if cookies are introduced).
-- [ ] IP ban middleware for repeated failures.
-- [ ] Session expiry + broker token revocation list.
-- [ ] Frontend TOTP setup/verify UI.
-- [ ] Security tests (rate limit, headers, Argon2, TOTP).
+- [x] CSRF protection for cookie/session routes (if cookies are introduced). (done: `core/csrf.py` middleware + `/api/csrf*` + `/api/auth/csrf*`; Bearer-token clients exempt).
+- [x] IP ban middleware for repeated failures. (done: `core/ip_ban.py`, 5 fails / 15 min → 429.)
+- [x] Session expiry + broker token revocation list. (done: 30-min JWT exp + jti blacklist + `POST /auth/logout`.)
+- [x] Frontend TOTP setup/verify UI. (done: settings 2FA card + login 2FA field.)
+- [x] Security tests (rate limit, headers, Argon2, TOTP). (done: `tests/test_security_phase1_remaining.py`.)
 
 ## Files touched
 - `backend/pyproject.toml`, `backend/uv.lock`

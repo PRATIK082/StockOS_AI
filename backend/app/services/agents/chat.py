@@ -6,10 +6,14 @@ question, pulls live context when one is found, and answers with the LLM.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 
 from app.core.logging import get_logger
+from app.services.agents import attachments as attachment_store
+from app.services.agents import skills as skill_packs
+from app.services.agents import websearch
 from app.services.agents.base import Agent, AgentContext, AgentResult
 from app.services.data.service import market_data
 from app.services.llm.gateway import gateway
@@ -72,6 +76,42 @@ class ChatAgent(Agent):
                     "content": "Live context:\n" + json.dumps(context, default=str)[:12000],
                 }
             )
+        extra_sources: list[str] = []
+        # P5-c extras, all supplied via ctx.data by the route layer.
+        for att in (ctx.data.get("attachments") or [])[:5]:
+            text = str(att.get("text") or "")[: attachment_store.CHAT_CONTEXT_CAP]
+            if text.strip():
+                messages.append(
+                    {
+                        "role": "system",
+                        "content": f"Attached file '{att.get('filename', '?')}':\n{text}",
+                    }
+                )
+                extra_sources.append(f"attachment:{att.get('id', '?')}")
+        skill_block = skill_packs.render(ctx.data.get("skills"))
+        if skill_block:
+            messages.append({"role": "system", "content": skill_block[:6000]})
+            found, _ = skill_packs.resolve(ctx.data.get("skills"))
+            extra_sources.extend(f"skill:{s.name}" for s in found)
+        if ctx.data.get("websearch"):
+            query = ctx.data.get("websearch_query") or question
+            if websearch.websearch_enabled():
+                try:
+                    result = await asyncio.to_thread(websearch.search, str(query)[:300])
+                    lines = [f"- {h['title']} ({h['url']})" + (f": {h['snippet']}" if h.get("snippet") else "")
+                             for h in result.get("results", [])]
+                    body = "\n".join(lines)[:4000] or "(no parseable results)"
+                    messages.append(
+                        {"role": "system",
+                         "content": "Web results (DuckDuckGo — verify before acting, may be stale):\n" + body}
+                    )
+                    extra_sources.append("web-search")
+                except Exception as exc:  # noqa: BLE001 - honest degradation
+                    logger.warning("web search failed, continuing without it: %s", exc)
+                    messages.append(
+                        {"role": "system",
+                         "content": f"(Web search was requested but unavailable: {exc})"}
+                    )
         messages.append({"role": "user", "content": question})
 
         try:
@@ -87,6 +127,6 @@ class ChatAgent(Agent):
             content=text,
             data={"symbol": symbol, "context": context},
             confidence=0.6 if context.get("quote") else 0.4,
-            sources=["live-quote"] if context.get("quote") else [],
+            sources=(["live-quote"] if context.get("quote") else []) + extra_sources,
             agent=self.name,
         )

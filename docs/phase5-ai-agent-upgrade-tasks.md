@@ -2,50 +2,81 @@
 
 Branch: `StockAlgo_1`
 
+## Scope for this iteration
+Finish the AI agent upgrade (reference-inspired, original code) without breaking the existing
+StockOS agents, MCP server, or Action Center approval flow.
+
 ## Already available in StockOS
 - [x] Multi-agent research/analysis services (`app/services/agents/*`).
-- [x] MCP server exposing 62 StockOS tools (`app/services/mcp/*`).
+- [x] MCP server exposing StockOS tools (`app/services/mcp/*`).
 - [x] Action Center approval queue for orders (`app/services/action_center.py`, router).
 - [x] Provider/model registry endpoint (`/api/trading/providers`).
 
-## Completed in Phase 5
-- [x] MCP client service to consume external MCP servers
-      (`app/services/mcp/client.py`: `MCPClient`, `MCPClientService`,
-      stdio + SSE transports) with routes under `/api/mcp/clients`.
-- [x] Agent -> chart markup integration
-      (`app/services/agents/chart_markup.py`: `ChartMarkupService`) exposed at
-      `/api/analysis/chart-markup` and `/api/chart-markup`.
+## Completed
+- [x] MCP client service to consume external MCP servers (`app/services/mcp/client.py`:
+      `MCPClient`, `MCPClientService`, stdio + SSE transports) with routes under `/api/mcp/clients`.
+- [x] Agent -> chart markup integration (`app/services/agents/chart_markup.py`:
+      `ChartMarkupService`) exposed at `/api/analysis/chart-markup` and `/api/chart-markup`.
 - [x] Model registry data endpoints (`/api/llm/registry`, `/api/trading/model-registry`).
 - [x] Tests: `test_mcp_client.py`, `test_chart_markup.py`, `test_model_registry.py`.
-
-## Still pending
-- [ ] Optional: migrate agent runtime to Agno + LiteLLM (existing agents keep working).
 - [x] Frontend surfaces for MCP clients, chart markup, and model registry
       (`frontend/app/ai-tools/page.tsx`).
-- [ ] Agent-tool specific order approval (the generic Action Center queue exists and
-      is wired, but the agent runtime does not yet route its tool calls through it).
-- [ ] Voice / attachments / web-search / skills in the agent runtime.
+- [x] P5-b: agent-tool order approval. New choke point `app/services/agents/tools.py`
+      (`list_tools`, `run_tool`, `preview_order` read-only, `place_order` approval-gated:
+      `REQUIRE_APPROVAL` files a pending `ActionCenterItem`, no broker contact; PAPER
+      mirrors `order_submit` incl. risk check). Autopilot `execute_agent` queues approvals
+      the same way and returns a `pending` list (fills stay empty, no direct fill).
+      Tests: `tests/test_agent_tools_approval.py` (6 tests). Full suite: 370 passed.
+- [x] P5-a: Agno + LiteLLM agent-runtime migration. Deps pinned
+      (`agno>=2.9,<3`, `litellm>=1.106.6,<2`, `mcp>=2.3,<3` — litellm 1.106+
+      imports the `mcp` package, verified by a live failure). New
+      `LiteLLMProvider` (`app/services/llm/providers/litellm_provider.py`,
+      lazy import, clean RuntimeError when absent) registered in the gateway
+      as `litellm` (Ollama base + OpenAI key defaults, zero new settings).
+      New opt-in runtime `app/services/agents/runtime_agno.py`
+      (`STOCKOS_AGENT_RUNTIME=agno`, default legacy): legacy evidence pass
+      first, then one Agno tool-calling pass (P5-b preview/place tools;
+      place without a user returns a not-placed message, never raises), any
+      failure falls back to the legacy result. Orchestrator `_run` routes
+      through `run_agent` (default behavior byte-identical). Verified live:
+      Agno 2.9.0 + LiteLLM instantiate in-process, `acompletion` and Agno
+      tool-calling work against local Ollama (qwen3:14b; ministral-3:14b hit
+      a model-side repeat-limit, environmental).
+      Tests: `tests/test_agent_runtime_agno.py` (13 tests, all faked, no
+      network). Full suite: 383 passed.
 
-## Phase 6 — Options Suite (added)
-Completed in Phase 6:
-- [x] Options analytics service (`app/services/options/analytics.py`): max pain, OI
-      profile, OI change, IV smile + 25-delta skew, volatility surface + ATM term
-      structure, gamma exposure (zero-gamma / flip strike), straddle payoff.
-- [x] Margin calculator + synthetic futures (`app/services/options/margin.py`) with a
-      transparent leverage table; every response is flagged `is_estimate: true`.
-- [x] Routers: `/api/options/analytics/*` and `/api/options/margin/*`.
-- [x] Frontend page `frontend/app/options-analytics/page.tsx` (table-based; the Plotly
-      dependency was skipped on purpose — no new npm dependency without approval).
-- [x] Tests: `backend/tests/test_options_phase6.py` (34 tests).
+## Not completed (remaining)
+- [x] P5-a: Agno + LiteLLM agent-runtime migration — DONE (see Completed above).
+- [x] P5-b: Agent-tool specific order approval — DONE (see Completed above).
+- [x] P5-c: Voice / attachments / web-search / skills — DONE. Flags
+      (`STOCKOS_VOICE_STT=off|faster-whisper` default off, optional dep, lazy
+      import; `STOCKOS_AGENT_ATTACHMENTS=on|off` default on, local
+      `backend/data/attachments/<user>/` + `index.json` sidecar, text extract
+      capped, images/PDFs stored-only and reported honestly;
+      `STOCKOS_AGENT_WEBSEARCH=off|duckduckgo` default off, no-key DDG lite
+      via httpx + tolerant regex parser, empty-not-fabricated;
+      `STOCKOS_AGENT_SKILLS` default off, `skills/*.md` prompt packs:
+      risk-discipline, options-desk, earnings-checklist). New
+      `app/services/voice/stt.py`, `agents/attachments.py`,
+      `agents/websearch.py`, `agents/skills.py` + 3 skill files, router
+      `api/routers/agent_extras.py` (`/voice/transcribe`,
+      `/agent/attachments*`, `/agent/websearch`, `/agent/skills`).
+      Wiring: `ChatRequest.attachment_ids/skills/websearch` (all optional),
+      `Orchestrator.run(data=)` → `AgentContext.data`, `ChatAgent` appends
+      attachment/skill/web blocks as system messages + sources
+      (`attachment:`, `skill:`, `web-search`), `OptionalUser` dep keeps
+      `/chat` open for anonymous callers (attachments warn when signed out).
+      Tests: `tests/test_agent_extras_p5c.py` (13 tests, all faked).
+      Full suite: 396 passed.
 
-Known behaviour:
-- The free TradingView options scanner publishes no open interest, so max pain, OI
-  profile and GEX legitimately return empty values for those chains.
-- A chain expiring today (0DTE) has no time value, so the 25-delta skew is reported as
-  unavailable instead of being filled with a proxy number.
-- When a chain carries no OI, support/resistance and zero-gamma/flip levels are
-  returned as null (not the first strike of the grid) with an explanatory note.
-- When a chain publishes no option premium, the straddle endpoint returns
-  `has_premium: false`, an empty breakeven list and null max profit/loss; only the
-  expiry intrinsic curve is shown. The synthetic-futures endpoint adds a note that
-  it was costed at zero premium.
+## Files touched
+- `backend/app/services/mcp/client.py`
+- `backend/app/services/agents/chart_markup.py`
+- `backend/app/api/routers/mcp_client.py` (`/api/mcp/clients`)
+- `backend/app/api/routers/chart_markup.py` + `analysis.py` (chart-markup routes)
+- `backend/app/api/routers/research.py` (`/api/llm/registry`) and `trading.py`
+  (`/trading/model-registry`)
+- `backend/tests/test_mcp_client.py`
+- `backend/tests/test_chart_markup.py`
+- `backend/tests/test_model_registry.py`
+- `frontend/app/ai-tools/page.tsx`

@@ -80,17 +80,18 @@ def _synthetic_chain(spot: float = 100.0, expiry: str | None = None) -> dict:
 @pytest.fixture
 def mock_chain(monkeypatch):
     """Patch the market-data facade so the analytics routes see a known chain."""
-    from app.api.routers import options_analytics
+    from app.services.data.service import MarketDataService
 
-    async def fake_get_option_chain(symbol, expiry=None, provider=None):
+    async def fake_get_option_chain(self, symbol, expiry=None, provider=None):
         chain = _synthetic_chain()
         if expiry and expiry[:10] != chain["expiry"]:
             chain["expiry"] = expiry[:10]
             chain["expiries"] = [expiry[:10]]
         return chain
 
+    # Class-level (never the singleton instance — see test_autopilot.py note).
     monkeypatch.setattr(
-        options_analytics.market_data, "get_option_chain", fake_get_option_chain, raising=True
+        MarketDataService, "get_option_chain", fake_get_option_chain, raising=True
     )
     return fake_get_option_chain
 

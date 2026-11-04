@@ -93,7 +93,7 @@ def test_quantlib_cashflow_and_options(client: TestClient, auth: dict) -> None:
 
 
 def test_swarm_endpoints(client: TestClient, auth: dict, monkeypatch) -> None:
-    from app.services.scheduler import runner
+    from app.services.data.service import MarketDataService
 
     import numpy as np
     import pandas as pd
@@ -110,10 +110,11 @@ def test_swarm_endpoints(client: TestClient, auth: dict, monkeypatch) -> None:
             "candles": [{"ts": str(d.date()), "open": float(c[i]), "high": float(c[i] * 1.01), "low": float(c[i] * 0.99), "close": float(c[i]), "volume": 1_000_000} for i, d in enumerate(dates)],
         }
 
-    async def _auto(symbol, *, interval="1d", period="2y", chain=None):
+    async def _auto(self, symbol, *, interval="1d", period="2y", chain=None):
         return out[symbol]
 
-    monkeypatch.setattr(runner.market_data, "get_history_auto", _auto)
+    # Class-level (never the singleton instance — see test_autopilot.py note).
+    monkeypatch.setattr(MarketDataService, "get_history_auto", _auto)
     presets = client.get("/api/swarm/presets", headers=auth).json()
     assert presets["count"] == 30
     dag = client.get("/api/swarm/presets/quant-sweep", headers=auth).json()

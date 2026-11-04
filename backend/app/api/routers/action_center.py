@@ -206,4 +206,8 @@ async def execute_item(
     item.status = "executed"
     item.decided_at = datetime.utcnow()
     await session.commit()
+    import asyncio
+    from app.services.telegram import alerts as _tg_alerts
+    asyncio.create_task(_tg_alerts.emit(
+        "order_executed", f"{item.side} {item.quantity} {item.symbol}"))
     return {"id": item.id, "status": item.status, "order_id": getattr(results[0], "order_id", None), "order_ids": [getattr(r, "order_id", None) for r in results]}

@@ -9,6 +9,7 @@ from app.api.routers import api_router
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.middleware import SecurityHeadersMiddleware
+from app.core.metrics import MetricsMiddleware
 from app.core.rate_limit import limiter
 from app.core.csrf import CSRFMiddleware, generate_csrf_token
 
@@ -31,10 +32,15 @@ async def lifespan(app: FastAPI):
         scheduler = get_scheduler()
         await scheduler.start()
 
+    # Telegram notifications bot (read-only v1; silent no-op when unconfigured).
+    from app.services.telegram.bot import start_bot, stop_bot
+    await start_bot()
+
     # Startup
     yield
 
     # Shutdown
+    await stop_bot()
     if scheduler is not None:
         await scheduler.stop()
     logger.info("Application shutdown complete")
@@ -53,11 +59,18 @@ def create_app() -> FastAPI:
     import os
     _cors_raw = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000")
     _cors_origins = [o.strip() for o in _cors_raw.split(",") if o.strip()]
+    # Private-LAN origins (phone/tablet on the same Wi-Fi hitting http://<lan-ip>:3000).
+    # Overridable via CORS_ALLOWED_ORIGIN_REGEX; empty string disables the regex.
+    _cors_regex = os.getenv(
+        "CORS_ALLOWED_ORIGIN_REGEX",
+        r"http://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?",
+    ) or None
     _allow_credentials = "*" not in _cors_origins
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins,
+        allow_origin_regex=_cors_regex,
         allow_credentials=_allow_credentials,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
@@ -69,9 +82,11 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(CSRFMiddleware)
+    app.add_middleware(MetricsMiddleware)
     
-    # Health check endpoint
+    # Health check endpoint (+ conventional /health alias)
     @app.get("/healthz", tags=["system"])
+    @app.get("/health", tags=["system"], include_in_schema=False)
     async def healthz() -> dict:
         return {"status": "ok", "app": settings.app_name, "environment": settings.environment}
 

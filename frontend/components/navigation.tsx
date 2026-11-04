@@ -26,6 +26,10 @@ import {
   CheckSquare,
   Wrench,
   Database,
+  Calendar,
+  Wallet,
+  Radio,
+  Puzzle,
 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 
@@ -42,6 +46,8 @@ const groups: NavGroup[] = [
       { href: "/sectors", label: "Sectors", icon: Layers },
       { href: "/screener", label: "Screener", icon: Search },
       { href: "/intraday", label: "Intraday", icon: Activity },
+      { href: "/calendar", label: "Calendar", icon: Calendar },
+      { href: "/streaming", label: "Live Quotes", icon: Radio },
     ],
   },
   {
@@ -64,6 +70,7 @@ const groups: NavGroup[] = [
       { href: "/trading/autopilot", label: "AI Agent", icon: Sparkles },
       { href: "/action-center", label: "Action Center", icon: CheckSquare },
       { href: "/options", label: "Options", icon: DollarSign },
+      { href: "/pnl", label: "P&L", icon: Wallet },
       { href: "/portfolio", label: "Portfolio", icon: Briefcase },
     ],
   },
@@ -73,6 +80,7 @@ const groups: NavGroup[] = [
     items: [
       { href: "/chat", label: "AI Chat", icon: MessageSquare },
       { href: "/ai-tools", label: "AI Tools", icon: Wrench },
+      { href: "/agent-extras", label: "Agent Extras", icon: Puzzle },
       { href: "/watchlist", label: "Watchlist", icon: Eye },
     ],
   },
@@ -81,6 +89,7 @@ const groups: NavGroup[] = [
     icon: Settings,
     items: [
       { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/operations", label: "Operations", icon: Activity },
       { href: "/broker-management", label: "Broker Mgmt", icon: Settings },
     ],
   },

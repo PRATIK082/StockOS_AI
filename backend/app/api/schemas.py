@@ -147,6 +147,9 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
     provider: str | None = None
     model: str | None = None
+    attachment_ids: list[str] = Field(default_factory=list, max_length=5)
+    skills: list[str] | None = None
+    websearch: bool = False
 
 
 class DeepAnalysisRequest(BaseModel):

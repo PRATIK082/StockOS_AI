@@ -590,6 +590,25 @@ export default function AiToolsPage() {
               )}
             </CardContent>
           </Card>
+          <Card className="shadow-none">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Agent runtime</CardTitle>
+              <CardDescription>
+                Autopilot agent execution runtime (read-only — there is no backend endpoint for this flag).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                The autopilot agent runtime is <span className="font-mono">legacy</span> by default.
+                Setting env <span className="font-mono">STOCKOS_AGENT_RUNTIME=agno</span> enables one
+                Agno+LiteLLM refinement pass per agent (model via{" "}
+                <span className="font-mono">STOCKOS_AGENT_MODEL</span>, default{" "}
+                <span className="font-mono">qwen3:14b</span>). Any failure silently falls back to
+                legacy; agno-path results are tagged{" "}
+                <span className="font-mono">runtime=agno</span> in the agent data.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ------------------------------- mcp ------------------------------ */}
