@@ -24,6 +24,11 @@ frontend/.env.local
 # Local tooling
 .opencode/
 opencode.jsonc
+opencode.json
+
+# Local-only dev artifacts (never commit)
+demo.mjs
+kill-all.bat
 
 # OS / editor
 .DS_Store
