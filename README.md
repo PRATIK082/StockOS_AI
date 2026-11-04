@@ -7,6 +7,36 @@ It combines market data, technical analysis, options analytics, AI-assisted
 research, risk controls, and a multi-agent autopilot that runs entirely in
 paper mode by default.
 
+## New in this release
+
+Pages (all verified at `frontend/app/<route>/page.tsx`):
+
+- `/flow` — Flow builder: graph list, validate (422 on unknown node types), dry-run, import/export, schedule toggle.
+- `/strategies` — Strategy host: script list + editor, run/stop, encrypted env vars (write-only), log viewer.
+- `/streaming` — Live quotes: REST status/latest/market plus WS `/quotes` and `/market`.
+- `/agent-extras` — Voice STT (`/voice/transcribe`), attachments, web-search, skills.
+- `/operations` — Ops dashboards backed by `/monitoring/health`, `/monitoring/latency`, `/monitoring/traffic`.
+- `/calendar` — Market holidays/timings/status admin (`/calendar/*`).
+- `/pnl` — PnL summary + equity curve (`/pnl/summary`, `/pnl/equity`).
+- `/historify` — Historical-data ingest/query/jobs/catalog (`/historify/*`, 30+ routes).
+- `/action-center` — Approval queue: list, approve/reject/execute (`/action-center/*`).
+- `/ai-tools` — LLM registry, MCP clients (`/mcp/clients/*`), chart markup, broker plugins.
+- `/options-analytics` — OI profile/change, IV smile, vol surface, GEX, straddle + margin endpoints (`/options/analytics/*`, `/options/margin/*`).
+
+Backend endpoints (routers in `backend/app/api/routers/`, registered in
+`routers/__init__.py`; app mounts them under `api_prefix="/api"`, frontend
+`api` client strips that prefix):
+
+| Area | Method + path |
+|---|---|
+| Flow (`flow.py`, prefix `/flow`) | `GET /flow/graphs`, `POST /flow/graphs`, `GET/PATCH/DELETE /flow/graphs/{id}`, `POST /flow/validate`, `POST /flow/run`, `POST /flow/import` (POST-only), `GET /flow/export/{id}` |
+| Strategy host (`strategy_host.py`, prefix `/strategy-host`) | `GET/POST /strategy-host/scripts`, `GET/PATCH/DELETE /strategy-host/scripts/{id}`, `POST /strategy-host/scripts/{id}/run`, `POST /strategy-host/scripts/{id}/stop`, `GET /strategy-host/scripts/{id}/logs`, `GET/PUT /strategy-host/scripts/{id}/env` |
+| Streaming (`streaming.py`, prefix `/streaming`) | `GET /streaming/status`, `GET /streaming/quotes/latest`, `GET /streaming/market`, `WS /streaming/quotes`, `WS /streaming/market` |
+| Agent extras (`agent_extras.py`, no prefix) | `POST /voice/transcribe`, `POST /agent/attachments`, `GET /agent/attachments`, `DELETE /agent/attachments/{att_id}`, `GET /agent/websearch`, `GET /agent/skills` |
+
+Notes: concurrent strategy `run` while active returns 409 single-flight;
+`/flow/import` has no GET variant; strategy env GET returns names only.
+
 ## Demo
 
 - Video: [demo.mp4](demo.mp4)
