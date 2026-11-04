@@ -90,8 +90,8 @@ def _isolate_paper_broker_state():
         PaperBroker._last_trade_date = trade_date
 
 
-def _set_mode(client: TestClient, mode: str) -> None:
-    r = client.patch("/api/v1/settings/", json={"execution_mode": mode})
+def _set_mode(client: TestClient, auth: dict, mode: str) -> None:
+    r = client.patch("/api/v1/settings/", json={"execution_mode": mode}, headers=auth)
     assert r.status_code == 200, r.text
 
 
@@ -374,7 +374,7 @@ def test_live_order_approval_mode_files_action_center(client: TestClient, auth: 
                    "params": {"symbol": "NSE:FLOWAPPROVAL", "side": "BUY", "quantity": 1}}],
         "edges": [],
     }
-    _set_mode(client, "REQUIRE_APPROVAL")
+    _set_mode(client, auth, "REQUIRE_APPROVAL")
     try:
         orders_before = asyncio.run(_count_orders(user_id))
         pending_before = asyncio.run(_count_pending_approvals(user_id))
@@ -389,7 +389,7 @@ def test_live_order_approval_mode_files_action_center(client: TestClient, auth: 
         assert asyncio.run(_count_pending_approvals(user_id)) == pending_before + 1
         assert asyncio.run(_count_orders(user_id)) == orders_before
     finally:
-        _set_mode(client, "PAPER")
+        _set_mode(client, auth, "PAPER")
 
 
 def test_live_paper_fill_default(client: TestClient, auth: dict, user_id: str) -> None:
@@ -400,7 +400,7 @@ def test_live_paper_fill_default(client: TestClient, auth: dict, user_id: str) -
                    "params": {"symbol": "NSE:FLOWFILL", "side": "BUY", "quantity": 1}}],
         "edges": [],
     }
-    _set_mode(client, "PAPER")
+    _set_mode(client, auth, "PAPER")
     try:
         orders_before = asyncio.run(_count_orders(user_id))
         r = client.post("/api/flow/run", json={"inline_graph": graph, "mode": "live"}, headers=auth)
@@ -410,7 +410,7 @@ def test_live_paper_fill_default(client: TestClient, auth: dict, user_id: str) -
         assert step["output"]["order_id"]
         assert asyncio.run(_count_orders(user_id)) == orders_before + 1
     finally:
-        _set_mode(client, "PAPER")
+        _set_mode(client, auth, "PAPER")
 
 
 # ------------------------------------------------------------------------- #

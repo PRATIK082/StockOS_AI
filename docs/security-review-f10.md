@@ -9,6 +9,29 @@
 - Convention: **[VERIFIED]** = confirmed in code. **[NOTE]** = observation / defense-in-depth
   suggestion, not a confirmed vulnerability. Severities are the reviewer's judgment.
 - No fixes implemented (per task).
+- **FIX STATUS (2026-11-05, commit on `feature/flow-strategy-suite`): both
+  CRITICALs below are FIXED and regression-tested
+  (`backend/tests/test_security_critical_fixes.py`, 6 tests):**
+  - C1: `GET`/`PATCH /api/v1/settings/` now require `CurrentUser`
+    (`settings.py` imports `app.api.deps.CurrentUser`). Authenticated-user
+    scope was chosen deliberately over admin-only: regular users legitimately
+    change their own execution mode/broker via the settings UI. Residual
+    accepted risk: any authenticated user can flip the *global* singleton
+    mode (local-first single-user threat model — a network attacker is now
+    blocked with 401).
+  - C2: `POST /api/mcp/clients/stdio` is now admin-only (`AdminUser` =
+    `require_role("admin")` guard, mirroring `calendar.py`; SSE connect left
+    as authenticated-user since it initiates no local process). Frontend
+    `ai-tools` connect errors now explain 403 as "Admin only".
+  - Knock-on updates: `test_flow.py` / `test_strategy_host.py` `_set_mode`
+    helpers now send auth headers; E2E `global-setup` registers before the
+    safety-gate settings read (`getSettings(base, token)`).
+  - Verification: new file 6/6 green; full backend suite **440 passed**;
+    frontend `typecheck` clean. (Note: `test_place_order_tool_direct_paper_fills`
+    fails if `test_phase4_analyzer_orders` is forced to run before it — pre-existing
+    order-dependence, phase4 lacks the PaperBroker `_isolate` fixture; default
+    suite order is green.)
+  - Highs H1–H6 below remain OPEN as documented findings.
 
 ## TL;DR — the short list
 

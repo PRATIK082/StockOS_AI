@@ -17,8 +17,12 @@ const FRONTEND_ORIGIN = "http://localhost:3000";
 async function globalSetup(config: FullConfig): Promise<void> {
   const base = process.env.E2E_API_URL ?? E2E_API_URL;
 
+  // --- Shared user (registered first: /v1/settings/ requires auth) --------
+  const creds = uniqueUser("e2e-shared");
+  const reg = await registerUser(base, creds);
+
   // --- Safety gate: never run E2E against a live broker --------------------
-  const settings = await getSettings(base);
+  const settings = await getSettings(base, reg.access_token);
   if (settings.execution_mode === "LIVE_ENABLED") {
     throw new Error(
       `E2E REFUSED: backend execution_mode is LIVE_ENABLED (base=${base}). ` +
@@ -32,9 +36,7 @@ async function globalSetup(config: FullConfig): Promise<void> {
     );
   }
 
-  // --- Shared user -----------------------------------------------------------
-  const creds = uniqueUser("e2e-shared");
-  const reg = await registerUser(base, creds);
+  // --- Shared user session -----------------------------------------------
   const me = await getMe(base, reg.access_token);
   if (!me || typeof me.totp_enabled !== "boolean") {
     throw new Error("E2E setup: /auth/me did not return a valid session");

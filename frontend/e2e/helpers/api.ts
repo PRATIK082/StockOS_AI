@@ -104,11 +104,14 @@ export function getMe(
   return req(base, "GET", "/auth/me", token);
 }
 
-export function getSettings(base: string): Promise<{
+export function getSettings(
+  base: string,
+  token?: string,
+): Promise<{
   execution_mode: string;
   selected_execution_broker: string;
 }> {
-  return req(base, "GET", "/v1/settings/", undefined);
+  return req(base, "GET", "/v1/settings/", token);
 }
 
 /** Enable TOTP for a user, trying prev/curr/next codes until one verifies. */

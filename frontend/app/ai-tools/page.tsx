@@ -332,7 +332,14 @@ export default function AiToolsPage() {
     onError: (error) => {
       setLastConnect(null);
       const status = errStatus(error);
-      const prefix = status === 502 ? "MCP server unreachable: " : status === 404 ? "Unknown client: " : "";
+      const prefix =
+        status === 403
+          ? "Admin only — stdio servers spawn local processes: "
+          : status === 502
+            ? "MCP server unreachable: "
+            : status === 404
+              ? "Unknown client: "
+              : "";
       setConnectBanner({ type: "error", msg: prefix + errMessage(error, "Failed to connect MCP server") });
     },
   });

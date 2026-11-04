@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, confloat, conint
 
+from app.api.deps import CurrentUser
 from app.core.config import get_settings
 
 router = APIRouter(tags=["settings"], prefix="/v1/settings")
@@ -72,7 +73,7 @@ class SettingsResponse(BaseModel):
 
 
 @router.get("/", response_model=SettingsResponse)
-def get_settings_endpoint():
+def get_settings_endpoint(user: CurrentUser):
     """Return current trading settings (Python-aligned types)."""
     d = get_settings()
     return SettingsResponse(
@@ -90,7 +91,7 @@ def get_settings_endpoint():
 
 
 @router.patch("/", response_model=SettingsResponse)
-def update_settings(payload: SettingsUpdate):
+def update_settings(payload: SettingsUpdate, user: CurrentUser):
     """Partial update of trading settings.
 
     Only fields explicitly provided are updated.  The in-memory

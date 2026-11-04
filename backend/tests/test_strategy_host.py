@@ -93,8 +93,8 @@ def _isolate_paper_broker_state():
         PaperBroker._last_trade_date = trade_date
 
 
-def _set_mode(client: TestClient, mode: str) -> None:
-    r = client.patch("/api/v1/settings/", json={"execution_mode": mode})
+def _set_mode(client: TestClient, auth: dict, mode: str) -> None:
+    r = client.patch("/api/v1/settings/", json={"execution_mode": mode}, headers=auth)
     assert r.status_code == 200, r.text
 
 
@@ -343,7 +343,7 @@ def test_approval_mode_place_order(client: TestClient, auth: dict, user_id: str)
 
     code = 'ctx.place_order("NSE:HOSTAPPROVAL", "BUY", 1)\nctx.log("order attempted")\n'
     sid = _make_script(client, auth, "Host approval", code)
-    _set_mode(client, "REQUIRE_APPROVAL")
+    _set_mode(client, auth, "REQUIRE_APPROVAL")
     try:
         orders_before = asyncio.run(_count_orders(user_id))
         pending_before = asyncio.run(_count_pending_approvals(user_id))
@@ -354,5 +354,5 @@ def test_approval_mode_place_order(client: TestClient, auth: dict, user_id: str)
         assert asyncio.run(_count_pending_approvals(user_id)) == pending_before + 1
         assert asyncio.run(_count_orders(user_id)) == orders_before  # zero fills
     finally:
-        _set_mode(client, "PAPER")
+        _set_mode(client, auth, "PAPER")
         client.delete(f"/api/strategy-host/scripts/{sid}", headers=auth)

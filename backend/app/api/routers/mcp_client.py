@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Annotated, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, require_role
+from app.db.models import User
 from app.services.mcp.client import mcp_client_service
 
 router = APIRouter(prefix="/mcp/clients", tags=["mcp-client"])
+
+AdminUser = Annotated[User, Depends(require_role("admin"))]
 
 
 class StdioConnectRequest(BaseModel):
@@ -38,7 +41,12 @@ async def list_clients(user: CurrentUser) -> dict:
 
 
 @router.post("/stdio", status_code=status.HTTP_201_CREATED)
-async def connect_stdio(body: StdioConnectRequest, user: CurrentUser) -> dict:
+async def connect_stdio(body: StdioConnectRequest, user: AdminUser) -> dict:
+    """Spawn a local stdio MCP server process.
+
+    Admin-only: ``command``/``args``/``cwd`` are executed server-side, so
+    regular users must never reach this endpoint.
+    """
     try:
         client = await mcp_client_service.connect_stdio(
             body.name, body.command, args=body.args, env=body.env, cwd=body.cwd, timeout=body.timeout
