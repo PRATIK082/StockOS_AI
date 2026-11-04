@@ -47,7 +47,8 @@ dry-run, and execute on a schedule — reusing StockOS market data, indicator fu
 | GET/POST | `/flow/graphs`, `/flow/graphs/{id}` (+PATCH/DELETE) | CRUD |
 | POST | `/flow/validate` | dry validation, returns findings |
 | POST | `/flow/run` | `{graph_id \| inline_graph, mode}` → RunReport |
-| GET/POST | `/flow/import`, `/flow/export/{id}` | JSON backup/restore |
+| POST | `/flow/import` (201) | JSON import (POST-only — no GET import) |
+| GET | `/flow/export/{id}` | JSON backup + `exported_at` |
 
 ### 7.3 Frontend (`frontend/app/flow/*`, new dep `@xyflow/react`)
 - `/flow` list page (table: name, enabled, schedule, last run) + `/flow/[id]` builder page:
@@ -96,9 +97,16 @@ with encrypted env vars and live logs. **Paper-only in v1**; live use stays behi
 | GET | `/strategy-host/scripts/{id}/logs?tail=` | captured logs |
 | GET/PUT | `/strategy-host/scripts/{id}/env` | encrypted env vars (values never echoed back) |
 
+> Contract deviations (verified 2026-11-05, covered by `frontend/e2e/flow-strategy.spec.ts`):
+> concurrent `POST …/run` while a run is active returns **409 single-flight**
+> (not a queue); stopping a never-ran script returns **404**. Unknown flow node
+> types are rejected with **422 at the API boundary** (findings lists are only
+> for structurally valid graphs, e.g. dangling edges).
+
 ### 8.3 Frontend (`frontend/app/strategies/*`, new dep `@uiw/react-codemirror`)
 - Scripts list + editor page (CodeMirror, python mode), Run/Stop, schedule field, env-var editor
-  (write-only values), log viewer (polling every 2–5 s; no new socket infra in v1).
+  (write-only values), log viewer (polling every 3 s; no new socket infra in v1).
+  Note: the viewer's Clear button is view-only (hides seen lines locally; next poll repopulates).
 
 ### 8.4 Steps
 1. Store + model + CRUD routes + tests.
@@ -167,12 +175,14 @@ with encrypted env vars and live logs. **Paper-only in v1**; live use stays behi
 ## Phase 10 — Polish and Hardening (effort M)
 
 1. **E2E suite** (extends the S1 Playwright harness): auth+TOTP, order→approval→execute,
-   historify job lifecycle, options-analytics render, flow dry-run, strategy-host run+logs.
+   historify job lifecycle, options-analytics render, flow dry-run ✅, strategy-host run+logs ✅
+   (`frontend/e2e/flow-strategy.spec.ts`, 8 tests, full suite 16/16 green on the harness temp DB).
    Gate: all green on a fresh local DB.
 2. **Performance pass**: Historify bulk-ingest timing + DuckDB query timing recorded as baselines in
    `docs/engineering/`; frontend `next build` size sanity (no new heavy deps without approval).
 3. **Security review**: OWASP checklist (auth, CSRF, rate limits, CSP headers live-verified),
-   secrets audit (`git grep` for tokens/keys — must be empty), `pip`/`npm` audit triage.
+   secrets audit (`git grep` for tokens/keys — ✅ empty 2026-11-05: only fake/placeholder
+   fixtures, no tracked `.env`, keys, or credentialed connection strings), `pip`/`npm` audit triage.
 4. **Docs + demo**: README touch-up, phase checkboxes final pass, fresh demo media via local-only
    `demo.mjs` (never committed), front-page GIF refresh.
 5. **Release checklist** for merging `StockAlgo_1` → `main`: full pytest + typecheck + build green,

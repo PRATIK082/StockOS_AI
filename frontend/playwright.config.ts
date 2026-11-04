@@ -56,6 +56,13 @@ export default defineConfig({
         storageState: "./e2e/.auth/user.json",
       },
     },
+    {
+      name: "flow-strategy",
+      testMatch: /flow-strategy\.spec\.ts/,
+      use: {
+        storageState: "./e2e/.auth/user.json",
+      },
+    },
   ],
   webServer: [
     {

@@ -17,10 +17,10 @@
 | 4 Analyzer/Action Center | 2 boxes open | ✅ backend + UI done; ❌ E2E tests missing | E-1 |
 | 5 AI agent | 3 boxes open | ✅ MCP client, chart markup, registries + pages; ❌ Agno migration, agent-tool approval, voice/attachments | P5-a/b/c |
 | 6 Options suite | done | ✅ done (9 endpoints, margin, synthetic, page, tests) | none |
-| 7 Flow builder | open | ❌ 0% — no dep, no backend, no pages | F-7 |
-| 8 Strategy host | open | ❌ 0% | F-8 |
+| 7 Flow builder | done | ✅ done (validator, executor, scheduler bridge, pages, E2E) — commit 362640f | none |
+| 8 Strategy host | done | ✅ done (spawn runner, env encryption, logs, pages, E2E) — commit 362640f | none |
 | 9 Monitoring/notify | open | ❌ ~0% (only analyzer square-off times exist) | F-9 |
-| 10 Polish | open | ❌ no E2E infra at all | F-10 |
+| 10 Polish | open | 🟡 **partial (F-10 in progress)** — E2E harness exists (S1) and now covers flow dry-run + strategy-host run/logs (16/16 green); perf baselines, OWASP review, docs/demo refresh still open | F-10 |
 
 - N1: Phase 1 "broker token revocation" = auth-token revocation (jti blacklist + `POST /auth/logout`
   + 30-min JWT exp) is done. Per-broker credential rotation UI is folded into F-9 admin diagnostics.
@@ -32,11 +32,12 @@
 - **P5-a**: Agno + LiteLLM runtime migration (must be feature-flagged, old runtime stays default).
 - **P5-b**: agent-tool-specific order approval (generic Action Center queue exists).
 - **P5-c**: voice / attachments / web-search / skills in agent runtime.
-- **F-7** (Phase 7): Flow builder — validator, executor, scheduler wiring, `frontend/app/flow/*`.
-- **F-8** (Phase 8): Python strategy host — process runner, scheduler, editor page, env encryption, logs.
+- **F-7** (Phase 7): Flow builder — ✅ DONE (commit 362640f + E2E in `flow-strategy.spec.ts`).
+- **F-8** (Phase 8): Python strategy host — ✅ DONE (commit 362640f + E2E in `flow-strategy.spec.ts`).
 - **F-9** (Phase 9): latency/traffic/health middleware + dashboards; PnL tracker page; Telegram bot + UI;
   market calendar/holidays/timings admin; broker TOTP/auth flows + admin diagnostics.
-- **F-10** (Phase 10): full E2E suite, perf pass, security review, docs + demo refresh.
+- **F-10** (Phase 10): E2E suite EXISTS (16 tests: 3 auth + 1 approval + 4 streaming + 8 flow-strategy, all green);
+  remaining polish = perf pass, security review, docs + demo refresh.
 
 ## 3. Build sequence (proposed start plan)
 
@@ -66,16 +67,25 @@
 ### S3 — Phase 5 remainder (P5-b → P5-a → P5-c) — effort L
 - P5-b first (small, high safety value), then flagged Agno/LiteLLM migration, then P5-c extras.
 
-### S4 — Phase 7 Flow builder (F-7) — effort XL
+### S4 — Phase 7 Flow builder (F-7) — DONE (commit 362640f)
 - New dep `@xyflow/react`; backend `services/flow/` (validator, executor, scheduler wiring);
   `frontend/app/flow/*`.
+- E2E (F-10 slice): `frontend/e2e/flow-strategy.spec.ts` — CRUD, validate (422 unknown-type /
+  dangling-edge findings), dry-run, POST-only `/flow/import` + `/flow/export/{id}`
+  round-trip, `/flow` UI listing. Suite 16/16 green.
 
-### S5 — Phase 8 strategy host (F-8) — effort L
+### S5 — Phase 8 strategy host (F-8) — DONE (commit 362640f)
 - `services/strategy_host/` process runner + scheduler; editor page (`@uiw/react-codemirror`);
   encrypted env vars; log streaming.
+- E2E (F-10 slice): trivial run → completed + log text, `timeout_seconds` kill,
+  409 single-flight on concurrent run, env PUT/GET names-only, `/strategies` UI
+  listing. Suite 16/16 green.
 
-### S6 — Phase 10 polish (F-10) — effort M
-- Full E2E suite, perf pass, OWASP/security review, docs + demo refresh.
+### S6 — Phase 10 polish (F-10) — effort M (E2E slice DONE, rest open)
+- Full E2E suite ✅ (flow + strategy-host slice: 8 tests, 16/16 green) — perf pass,
+  OWASP/security review (secrets audit: empty, 2026-11-05), docs + demo refresh still open.
+- Contract deviations recorded in `docs/phase7-10-detailed-plan.md`: POST-only
+  `/flow/import`; strategy run 409 single-flight; logs Clear is view-only.
 
 ## 4. Dependencies to add (all currently absent)
 
