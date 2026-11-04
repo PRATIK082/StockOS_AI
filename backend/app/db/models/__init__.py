@@ -21,3 +21,5 @@ from app.db.models.calendar import MarketHoliday  # noqa: F401
 from app.db.models.autopilot import AutopilotRun, AutopilotRunNode  # noqa: F401
 from app.db.models.master_contract import MasterContract  # noqa: F401
 from app.db.models.telegram import TelegramConfig  # noqa: F401
+from app.db.models.flow_graph import FlowGraph  # noqa: F401
+from app.db.models.strategy_script import StrategyScript  # noqa: F401

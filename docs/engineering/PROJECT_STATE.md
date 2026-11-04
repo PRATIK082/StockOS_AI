@@ -1,39 +1,32 @@
 # Project State — StockOS AI
 
 ## Branch / Revision
-- Branch: `StockAlgo_1`
-- Base: `main` (`e4cbbbd`)
-- Latest commits:
-  - `326d42a` feat(security): phase1 argon2, fernet, rate limits, headers, totp
-  - `ba7a019` feat(action-center): add approval queue and semi-auto order mode
-  - `2cc607f` feat(historify): add duckdb ohlcv warehouse and routes
-- `e36ad62` fix(runtime): repair missing settings attribute and auto-upgrade local db schema
+- Active work branch: `feature/flow-strategy-suite` (from `origin/main` @ `a58ba47`, the merged PR #4).
+- `main` includes everything through S4 streaming (PR #4 merged as `a58ba47`).
+- Spec branch `feature/agentic-platform-spec` pushed (spec doc only, `95e51f8`).
+- Standing rule: local commits; push only on explicit user confirmation.
 
-## Completed (Tier 1 foundation)
-- Security hardening Phase 1 (Argon2 + bcrypt fallback, Fernet PBKDF2 per-install salt, rate limiting, security headers, TOTP 2FA, semi-auto mode).
-- Action Center approval queue + execute endpoint.
-- Historify DuckDB OHLCV warehouse + ingest/query/status routes + tests.
-- Broker plugin metadata + plugin loader + master contract store + routes.
+## Completed (all merged to main via PR #4)
+- S1 E2E harness + Phase 4 approval E2E (Playwright, 8/8 green with S4 specs).
+- S2 Phase 9 ops: monitoring, calendar, PnL, Telegram read-only, broker diagnostics (backend + pages).
+- S3 Phase 5: P5-b agent-tool approval, P5-a Agno+LiteLLM (env-flagged, legacy default), P5-c voice/attachments/websearch/skills.
+- S3.5 streaming: poll hub + WS/REST + pages + E2E. Backend pytest 404 passed; typecheck + build green.
 
-## Task docs now present
-- `docs/phase1-security-implementation-tasks.md`
-- `docs/phase2-broker-plugin-tasks.md`
-- `docs/phase3-historify-implementation-tasks.md`
-- `docs/phase4-analyzer-action-center-tasks.md`
+## In progress — team self-team-1 (spawned 2026-11-04)
+Goal: all remaining work-plan items (S4 Flow F-7, S5 strategy host F-8, S6 polish F-10).
+- `flow-backend` (bgt): backend/app/services/flow/*, routers/flow.py, models/flow_graph.py, tests/test_flow.py.
+- `flow-ui` (bgt): frontend/app/flow/* (list + [id] builder, @xyflow/react).
+- `strat-ui` (bgt): frontend/app/strategies/* (list + [id] editor, CodeMirror).
+- `host-backend` (queued): runs after flow-backend lands (test-DB safety); services/strategy_host/*, router, model, tests.
+- Parent owns: shared-file wiring (routers/__init__.py, models/__init__.py, navigation.tsx), full pytest + typecheck + build + E2E, commits.
+- `qa-polish` (queued last): E2E specs for flow/strategies, docs checkboxes, secrets audit (F-10 subset).
 
-## Verification
-- Backend: `261 passed` (pytest) on `StockAlgo_1`.
-- Frontend: `npm run typecheck` and `npm run build` passed.
-- Runtime smoke test: all GET API routes returned 200 except expected 404/422 for missing path/query parameters; fixed `/api/trading/providers` (`StockOSSettings` missing `ta_default_provider`).
-- Existing SQLite database upgraded successfully on startup (TOTP columns and new tables added).
+## Conventions (binding on all agents)
+- Backend tests: temp-DB conftest + module TestClient + register/auth fixtures; class-level MarketDataService patches ONLY (never instance-level); PaperBroker class-state isolation fixture when filling paper orders.
+- Approval semantics: REQUIRE_APPROVAL → ActionCenterItem, zero direct fills; paper-only defaults; no fabricated market data.
+- Frontend: `api` from @/lib/api (no /api prefix), React Query v5, shadcn, amber warnings; no git/build/dev-server commands from builders.
 
 ## Remaining / Next
-- Finish Phase 1 remaining items: CSRF, IP ban, token/session revocation, frontend TOTP.
-- Finish Phase 2 remaining items: package refactor, broker factory, sync jobs, tests.
-- Finish Phase 3 remaining items: watchlist/catalog, jobs, incremental, import/export, FNO, frontend.
-- Finish Phase 4 remaining items: analyzer sandbox, smart/basket/split orders, frontend.
-- AI agent upgrade (Agno/LiteLLM/MCP client) — Phase 5.
-- Flow builder, Python strategy host, options suite, monitoring, Telegram — Phases 6-9.
-
-## Local-only files (not committed)
-- `demo.mjs`, `opencode.json`.
+- S4 Flow builder, S5 strategy host, S6 polish (this team).
+- Agentic-platform-spec F-01..F-12 features: spec'd, awaiting approval — NOT in scope for this team.
+- Local-only files (never commit): `demo.mjs`, `opencode.json`.

@@ -8,7 +8,9 @@ from app.api.routers import (
     brokers,
     calendar,
     chart_markup,
+    flow,
     historify,
+    strategy_host,
     auth,
     mcp_client,
     autopilot,
@@ -45,6 +47,8 @@ api_router.include_router(auth.router)
 api_router.include_router(brokers.router)
 api_router.include_router(calendar.router)
 api_router.include_router(chart_markup.router)
+api_router.include_router(flow.router)
+api_router.include_router(strategy_host.router)
 api_router.include_router(historify.router)
 api_router.include_router(mcp_client.router)
 api_router.include_router(market.router)

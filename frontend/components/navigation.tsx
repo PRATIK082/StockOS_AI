@@ -30,6 +30,8 @@ import {
   Wallet,
   Radio,
   Puzzle,
+  Workflow,
+  FileCode2,
 } from "lucide-react"
 import { useState, useEffect, useRef } from "react"
 
@@ -71,6 +73,8 @@ const groups: NavGroup[] = [
       { href: "/action-center", label: "Action Center", icon: CheckSquare },
       { href: "/options", label: "Options", icon: DollarSign },
       { href: "/pnl", label: "P&L", icon: Wallet },
+      { href: "/flow", label: "Flow Builder", icon: Workflow },
+      { href: "/strategies", label: "Strategies", icon: FileCode2 },
       { href: "/portfolio", label: "Portfolio", icon: Briefcase },
     ],
   },

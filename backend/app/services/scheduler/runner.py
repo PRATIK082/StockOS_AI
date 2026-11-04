@@ -237,6 +237,18 @@ async def _decide_node(ctx: dict, inputs: dict) -> dict:
 
 async def run_playbook(playbook: dict, user_id: str | None = None) -> dict:
     ptype = (playbook or {}).get("type", "technical_summary")
+    kind = (playbook or {}).get("kind")
+    if kind in ("flow", "strategy_host"):
+        # Bridge playbooks created by flow_playbook()/strategy_playbook().
+        # Deferred imports: scheduler must never pull agent executors at module load.
+        if kind == "flow":
+            from app.services.flow.executor import run_playbook as run_flow_playbook
+
+            report = await run_flow_playbook(playbook, user_id or "")
+            return report.model_dump() if hasattr(report, "model_dump") else dict(report)
+        from app.services.strategy_host.runner import run_playbook as run_strategy_playbook
+
+        return await run_strategy_playbook(playbook, user_id or "")
     handlers = {
         "technical_summary": _technical_summary,
         "backtest": _backtest,
