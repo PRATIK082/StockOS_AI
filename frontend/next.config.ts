@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
     ? process.env.ALLOWED_DEV_ORIGINS.split(",")
         .map((s) => s.trim())
         .filter(Boolean)
-    : ["192.168.1.6"],
+    : ["192.168.1.6", "192.168.1.8"],
 };
 
 export default nextConfig;
