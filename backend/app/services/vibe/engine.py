@@ -13,8 +13,11 @@ import json
 from typing import Any, AsyncIterator
 
 from app.core.logging import get_logger
+from app.services.agents import skills as agent_skills
 from app.services.agents.chat import _detect_symbol
 from app.services.data.service import market_data
+from app.services.news import symbol_news
+from app.services.vibe.resolve import resolve_company
 from app.services.llm.gateway import gateway
 from app.services.options.signals import OptionsSignalsService
 from app.services.prediction.engine import PredictionEngine, Timeframe
@@ -29,6 +32,7 @@ STAGE_PLAN: list[tuple[str, str]] = [
     ("technical", "Technical indicators"),
     ("options", "Options view"),
     ("prediction", "AI prediction"),
+    ("news", "Latest news"),
     ("answer", "Verdict"),
 ]
 
@@ -65,13 +69,56 @@ class VibeChatEngine:
         message: str,
         *,
         provider: str | None = None,
+        news: bool = True,
     ) -> AsyncIterator[dict[str, Any]]:
         """Run the pipeline, yielding one event dict per stage plus a final answer."""
         yield {"type": "plan", "plan": [{"key": k, "label": v} for k, v in STAGE_PLAN]}
 
-        symbol = _detect_symbol(message)
-        symbol = await self._resolve_symbol(symbol, provider) if symbol else None
-        yield _stage("done" if symbol else "skipped", "symbol", {"symbol": symbol})
+        # Symbol: explicit EXCHANGE:TICKER wins; otherwise resolve company names
+        # ("Reliance", "Apple", "HDFC Bank") via the local stock database.
+        explicit = _detect_symbol(message)
+        company = ""
+        resolved_from = explicit or ""
+        method = "explicit"
+        symbol: str | None = None
+        resolution = None
+        if explicit:
+            symbol = await self._resolve_symbol(explicit, provider)
+            if symbol is None and ":" not in explicit:
+                # Bare caps token ("HDFC") that matches no quote — fall back to
+                # company-name search instead of giving up.
+                resolution = resolve_company(message, ignore=explicit)
+        else:
+            resolution = resolve_company(message)
+        if resolution is not None and symbol is None:
+            company = resolution.company
+            resolved_from = resolution.query
+            method = resolution.method
+            if resolution.symbol:
+                # Verify top pick (then near-misses) against a real quote.
+                ordered = [resolution.symbol] + [
+                    c["symbol"] for c in resolution.candidates[1:4]
+                    if c["symbol"] != resolution.symbol
+                ]
+                for cand in ordered:
+                    verified = await self._resolve_symbol(cand, provider)
+                    if verified:
+                        symbol = verified
+                        break
+            if resolution.method == "ambiguous" and resolution.candidates:
+                yield {
+                    "type": "candidates",
+                    "data": {
+                        "query": resolution.query,
+                        "candidates": resolution.candidates[:5],
+                        "picked": symbol,
+                    },
+                }
+        yield _stage(
+            "done" if symbol else "skipped",
+            "symbol",
+            {"symbol": symbol, "resolved_from": resolved_from, "method": method},
+        )
 
         if not symbol:
             answer = await self._answer_without_data(message, provider)
@@ -98,15 +145,38 @@ class VibeChatEngine:
         prediction = await self._prediction_stage(symbol, provider)
         yield _stage("done" if prediction.get("current_price") else "error", "prediction", prediction)
 
-        # 5. LLM verdict over the collected real data (deterministic fallback)
-        answer, confidence = await self._answer_with_data(message, symbol, quote, tech, options, prediction, provider)
+        # 5. Latest news (keyless RSS; honest skip when disabled or dry).
+        news_items: list[dict[str, Any]] = []
+        news_note = ""
+        company_name = company or quote.get("name") or symbol
+        if news and symbol_news.news_enabled():
+            try:
+                fetched = await symbol_news.fetch_symbol_news(symbol, company_name)
+                news_items = fetched["items"]
+                notes = "; ".join(f"{src}: {st}" for src, st in fetched["notes"].items())
+                news_note = f"{len(news_items)} headlines. {notes}" if news_items else f"No fresh headlines. {notes}"
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("vibe news failed for %s: %s", symbol, exc)
+                news_note = "News fetch failed."
+        elif not symbol_news.news_enabled():
+            news_note = "News disabled (STOCKOS_VIBE_NEWS=off)."
+        yield _stage(
+            "done" if news_items else "skipped",
+            "news",
+            {"symbol": symbol, "company": company_name, "items": news_items, "note": news_note},
+        )
+
+        # 6. LLM verdict over the collected real data (deterministic fallback)
+        answer, confidence = await self._answer_with_data(
+            message, symbol, quote, tech, options, prediction, provider, news_items
+        )
         yield {
             "type": "answer",
             "data": {
                 "answer": answer,
                 "confidence": confidence,
                 "symbol": symbol,
-                "sources": self._sources(quote, tech, options, prediction),
+                "sources": self._sources(quote, tech, options, prediction, news_items),
             },
         }
 
@@ -209,7 +279,7 @@ class VibeChatEngine:
     # --- LLM verdict --------------------------------------------------------------------------
 
     @staticmethod
-    def _sources(quote, tech, options, prediction) -> list[str]:
+    def _sources(quote, tech, options, prediction, news_items=None) -> list[str]:
         sources: list[str] = []
         if quote.get("provider"):
             sources.append(f"live-quote:{quote['provider']}")
@@ -219,6 +289,12 @@ class VibeChatEngine:
             sources.append("options:chain")
         if prediction.get("symbol"):
             sources.append("prediction:engine")
+        for item in news_items or []:
+            tag = f"news:{item.get('source', 'rss')}"
+            if tag not in sources:
+                sources.append(tag)
+            if len([s for s in sources if s.startswith("news:")]) >= 4:
+                break
         return sources
 
     async def _answer_with_data(
@@ -230,6 +306,7 @@ class VibeChatEngine:
         options: dict[str, Any],
         prediction: dict[str, Any],
         provider: str | None,
+        news_items: list[dict[str, Any]] | None = None,
     ) -> tuple[str, float]:
         context = {
             "symbol": symbol,
@@ -248,15 +325,24 @@ class VibeChatEngine:
                 "bear_case": prediction.get("bear_case"),
                 "factors": prediction.get("factors"),
             },
+            "news": [
+                {"source": n.get("source"), "title": n.get("title"), "published": n.get("published")}
+                for n in (news_items or [])[:6]
+            ],
         }
         prompt = (
             f"User question: {message}\n\n"
             f"Live StockOS data for {symbol}:\n{json.dumps(context, default=str)[:12000]}"
         )
+        system_prompt = ANSWER_SYSTEM_PROMPT
+        if news_items:
+            skill_block = agent_skills.render(["vibe-news-brief"])
+            if skill_block:
+                system_prompt += "\n\n" + skill_block
         try:
             text = await gateway.chat(
                 [
-                    {"role": "system", "content": ANSWER_SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
                 provider=provider,
@@ -266,7 +352,7 @@ class VibeChatEngine:
                 return text.strip(), float(prediction.get("confidence") or 0.6)
         except Exception as exc:  # noqa: BLE001
             logger.warning("vibe LLM verdict failed for %s: %s", symbol, exc)
-        return self._deterministic_verdict(symbol, quote, tech, options, prediction), float(
+        return self._deterministic_verdict(symbol, quote, tech, options, prediction, news_items), float(
             prediction.get("confidence") or 0.5
         )
 
@@ -277,6 +363,7 @@ class VibeChatEngine:
         tech: dict[str, Any],
         options: dict[str, Any],
         prediction: dict[str, Any],
+        news_items: list[dict[str, Any]] | None = None,
     ) -> str:
         lines = [f"**Verdict — {symbol}**\n"]
         price = quote.get("price")
@@ -294,6 +381,8 @@ class VibeChatEngine:
             )
         if options.get("bias"):
             lines.append(f"- Options bias: **{options['bias']}**.")
+        for item in (news_items or [])[:3]:
+            lines.append(f"- In the news: *{item.get('title')}* ({item.get('source')}).")
         lines.append("\n*Live data summary — LLM verdict was unavailable.*\n*Research only, not investment advice.*")
         return "\n".join(lines)
 

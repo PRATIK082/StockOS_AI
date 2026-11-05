@@ -52,6 +52,40 @@ export default function VibeRunView({ run }: { run: VibeRunState }) {
         <PredictionResultView result={run.stages.prediction.data as PredictionResult} />
       )}
 
+      {run.stages.news?.status === "done" &&
+        Array.isArray(run.stages.news.data?.items) &&
+        run.stages.news.data.items.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Latest news</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {run.stages.news.data.items.map((item: Record<string, any>, i: number) => (
+                  <li key={`${item.url || item.title}-${i}`} className="text-sm">
+                    {item.url ? (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline-offset-2 hover:underline"
+                      >
+                        {item.title}
+                      </a>
+                    ) : (
+                      <span>{item.title}</span>
+                    )}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {item.source}
+                      {item.published ? ` · ${item.published}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
       {run.answer && (
         <div>
           <article className="prose-invert prose-sm max-w-none">

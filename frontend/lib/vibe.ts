@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { VibeAnswerEvent, VibeEvent, VibeStageEvent } from "@/lib/api";
+import type { VibeAnswerEvent, VibeCandidatesEvent, VibeEvent, VibeStageEvent } from "@/lib/api";
 import { getAuthToken } from "@/lib/api";
 
 export const VIBE_API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -19,10 +19,11 @@ export interface VibeRunState {
   active: string | null;
   answer: VibeAnswerEvent["data"] | null;
   error: string | null;
+  candidates: VibeCandidatesEvent["data"] | null;
 }
 
 export function emptyVibeRun(): VibeRunState {
-  return { plan: [], stages: {}, active: null, answer: null, error: null };
+  return { plan: [], stages: {}, active: null, answer: null, error: null, candidates: null };
 }
 
 function nextActive(run: VibeRunState): string | null {
@@ -53,6 +54,9 @@ export function applyVibeEvent(run: VibeRunState, ev: VibeEvent): VibeRunState {
   if (ev.type === "error") {
     return { ...run, error: ev.data.detail, active: null };
   }
+  if (ev.type === "candidates") {
+    return { ...run, candidates: ev.data };
+  }
   return run;
 }
 
@@ -60,6 +64,7 @@ export interface VibeChatOptions {
   attachment_ids?: string[];
   skills?: string[];
   websearch?: boolean;
+  news?: boolean;
 }
 
 export interface VibeRunController {
@@ -97,6 +102,7 @@ export function useVibeRun(): VibeRunController {
           attachment_ids: opts?.attachment_ids ?? [],
           skills: opts?.skills ?? null,
           websearch: opts?.websearch ?? false,
+          news: opts?.news ?? true,
         }),
         signal: controller.signal,
       });

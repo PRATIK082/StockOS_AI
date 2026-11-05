@@ -102,7 +102,7 @@ def test_plan_emitted_first(monkeypatch) -> None:
     eng = vibe_engine_mod.VibeChatEngine(market_service=_FakeMarket(), prediction=None, signals=_FakeSignals())
     evs = asyncio.run(_collect(eng, "What about NSE:RELIANCE?"))
     assert evs[0]["type"] == "plan"
-    assert [p["key"] for p in evs[0]["plan"]] == ["symbol", "quote", "technical", "options", "prediction", "answer"]
+    assert [p["key"] for p in evs[0]["plan"]] == ["symbol", "quote", "technical", "options", "prediction", "news", "answer"]
     assert evs[1]["type"] == "stage" and evs[1]["key"] == "symbol"
 
 
@@ -162,12 +162,17 @@ def test_vibe_route_streams_events(client: TestClient, monkeypatch) -> None:
     """The SSE route surfaces the pipeline as data: frames."""
     events: list[dict] = []
 
-    async def _fake_stream(message, *, provider=None):
+    async def _fake_stream(message, *, provider=None, news=True):
         yield {"type": "plan", "plan": [{"key": "quote", "label": "Quote"}]}
         yield {"type": "stage", "status": "done", "key": "quote", "data": {"quote": {"price": 10.0}}}
         yield {"type": "answer", "data": {"answer": "ok", "confidence": 0.5, "symbol": "NSE:X", "sources": []}}
 
-    monkeypatch.setattr(vibe_engine_mod, "vibe_chat_engine", type("E", (), {"stream": _fake_stream})())
+    # Patch where the route looks it up (research.py binds the name directly;
+    # patching the engine module attribute would NOT affect the route).
+    monkeypatch.setattr(
+        "app.api.routers.research.vibe_chat_engine",
+        type("E", (), {"stream": staticmethod(_fake_stream)})(),
+    )
     r = client.post("/api/chat/vibe", json={"message": "Analyze NSE:X"})
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/event-stream")

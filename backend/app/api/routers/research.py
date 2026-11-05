@@ -75,7 +75,7 @@ async def chat_vibe(body: ChatRequest) -> StreamingResponse:
 
     async def event_stream() -> AsyncIterator[str]:
         try:
-            async for event in vibe_chat_engine.stream(body.message, provider=body.provider):
+            async for event in vibe_chat_engine.stream(body.message, provider=body.provider, news=body.news):
                 yield "data: " + json.dumps(event, ensure_ascii=False) + "\n\n"
         except Exception as exc:  # noqa: BLE001
             yield (

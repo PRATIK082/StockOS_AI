@@ -87,7 +87,16 @@ export interface VibeErrorEvent {
   data: { detail: string };
 }
 
-export type VibeEvent = VibePlanEvent | VibeStageEvent | VibeAnswerEvent | VibeErrorEvent;
+export interface VibeCandidatesEvent {
+  type: "candidates";
+  data: {
+    query: string;
+    candidates: Array<{ symbol: string; name: string; market: string }>;
+    picked: string | null;
+  };
+}
+
+export type VibeEvent = VibePlanEvent | VibeStageEvent | VibeAnswerEvent | VibeErrorEvent | VibeCandidatesEvent;
 
 export interface Watchlist {
   id: string;

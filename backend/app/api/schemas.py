@@ -150,6 +150,7 @@ class ChatRequest(BaseModel):
     attachment_ids: list[str] = Field(default_factory=list, max_length=5)
     skills: list[str] | None = None
     websearch: bool = False
+    news: bool = True
 
 
 class DeepAnalysisRequest(BaseModel):

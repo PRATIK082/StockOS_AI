@@ -30,6 +30,7 @@ export default function ChatPage() {
   const [attachmentsInput, setAttachmentsInput] = useState("");
   const [skillsInput, setSkillsInput] = useState("");
   const [websearch, setWebsearch] = useState(false);
+  const [news, setNews] = useState(true);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [runs, setRuns] = useState<Record<number, VibeRunState>>({});
   const [activeKey, setActiveKey] = useState<number | null>(null);
@@ -66,6 +67,7 @@ export default function ChatPage() {
       attachment_ids,
       skills: skills.length ? skills : undefined,
       websearch,
+      news,
     });
     setRuns((prev) => ({ ...prev, [key]: final }));
     setActiveKey((k) => (k === key ? null : k));
@@ -106,6 +108,7 @@ export default function ChatPage() {
             {messages.map((m, i) => {
               const live = activeKey === m.runKey && streaming ? run : null;
               const snapshot = runs[m.runKey];
+              const view = live ?? snapshot ?? emptyVibeRun();
               return (
                 <div key={i} className={`flex gap-3 ${m.role === "user" ? "flex-row-reverse" : ""}`}>
                   <div
@@ -123,7 +126,31 @@ export default function ChatPage() {
                     {m.role === "user" ? (
                       <p className="text-sm">{m.content}</p>
                     ) : (
-                      <VibeRunView run={live ?? snapshot ?? emptyVibeRun()} />
+                      <>
+                        <VibeRunView run={view} />
+                        {view.candidates && view.candidates.candidates.length > 0 && (
+                          <div className="mt-3 border-t pt-2">
+                            <p className="text-xs text-muted-foreground">
+                              {view.candidates.picked
+                                ? `Analyzing ${view.candidates.picked} — did you mean one of these instead?`
+                                : `Which one did you mean for "${view.candidates.query}"?`}
+                            </p>
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {view.candidates.candidates.map((c) => (
+                                <Button
+                                  key={c.symbol}
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={streaming}
+                                  onClick={() => send(`Analyze ${c.symbol} (${c.name})`)}
+                                >
+                                  {c.symbol}
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -159,10 +186,16 @@ export default function ChatPage() {
                 <p className="mt-1 text-xs text-muted-foreground">Unknown skill names are ignored with a warning.</p>
               </div>
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={websearch} onChange={(e) => setWebsearch(e.target.checked)} />
-              Web search
-            </label>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={websearch} onChange={(e) => setWebsearch(e.target.checked)} />
+                Web search
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={news} onChange={(e) => setNews(e.target.checked)} />
+                Latest news
+              </label>
+            </div>
             {warnings.length > 0 && (
               <ul className="space-y-1">
                 {warnings.map((w) => (
